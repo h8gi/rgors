@@ -99,6 +99,7 @@ func (lx *Lexer) ReadWhile(pred func(rune) bool) (s string, size int, err error)
 
 // Read while digit
 // err is EOF
+//  TODO: implement scheme number tower
 func (lx *Lexer) ReadNumber() (Token, error) {
 	s, size, err := lx.ReadWhile(unicode.IsDigit)
 	// EOF

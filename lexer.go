@@ -146,6 +146,7 @@ func (lx *Lexer) ReadDot() (Token, error) {
 	}
 }
 
+// Read # start token
 func (lx *Lexer) ReadSharp() (Token, error) {
 	var token Token
 	r, _, err := lx.reader.ReadRune()
@@ -158,6 +159,12 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 	case r == 't' || r == 'f':
 		token = Token{kind: Boolean, text: string([]rune{'#', r})}
 	case r == '\\':
+		// space will be skipped by readident
+		if r, _, err = lx.reader.ReadRune(); unicode.IsSpace(r) {
+			token = Token{kind: Char, text: string(r)}
+			break
+		}
+		lx.reader.UnreadRune() // recover from space-check.
 		token, err = lx.ReadIdent()
 		if len(token.text) == 1 || token.text == "newline" || token.text == "space" {
 			token.kind = Char
@@ -169,6 +176,37 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 		token, err = Token{kind: Error}, fmt.Errorf("lexer: # precede %s", string(r))
 	}
 	return token, err
+}
+
+// Read scheme string
+//  first double quote has already been read.
+func (lx *Lexer) ReadString() (Token, error) {
+	rs := make([]rune, 0)
+	for {
+		r, _, eof := lx.reader.ReadRune()
+		// EOF check
+		switch {
+		case eof != nil:
+			return Token{kind: EOF}, eof
+		case r == '"':
+			return Token{kind: String, text: string(rs)}, nil
+		case r == '\\':
+			rr, _, _ := lx.reader.ReadRune()
+			if !(rr == '"' || rr == '\\') {
+				return Token{kind: Error}, fmt.Errorf("lexer: Illegal string elm %s", string(rr))
+			} else {
+				rs = append(rs, r, rr)
+			}
+		default:
+			rs = append(rs, r)
+		}
+	}
+}
+
+// Read comment
+func (lx *Lexer) ReadComment() (Token, error) {
+	s, _, _ := lx.ReadWhile(func(r rune) bool { return r != '\n' })
+	return Token{kind: Comment, text: s}, nil
 }
 
 // ReadToken return Token structure
@@ -193,8 +231,12 @@ func (lx *Lexer) ReadToken() (Token, error) {
 		token, err = lx.ReadDot()
 	case r == '#':
 		token, err = lx.ReadSharp()
+	case r == '"':
+		token, err = lx.ReadString()
 	case r == '+' || r == '-':
 		token = Token{kind: Ident, text: string(r)}
+	case r == ';':
+		token, err = lx.ReadComment()
 	case r == '(':
 		token = Token{kind: Open, text: "("}
 	case r == ')':

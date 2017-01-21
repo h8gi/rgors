@@ -108,13 +108,19 @@ func (lx *Lexer) PeekChar() (rune, error) {
 // err is EOF
 //  TODO: implement scheme number tower
 func (lx *Lexer) ReadNumber() (Token, error) {
-	s, size, err := lx.ReadWhile(unicode.IsDigit)
+	is, size, err := lx.ReadWhile(unicode.IsDigit)
 	// EOF
 	if err != nil && size == 0 {
 		return Token{kind: EOF}, err
 	}
 
-	return Token{kind: Number, text: s}, nil
+	r, err := lx.PeekChar()
+	if err != nil || r != '.' {
+		return Token{kind: Number, text: is}, nil
+	}
+	lx.reader.ReadRune() // consume dot
+	fs, size, err := lx.ReadWhile(unicode.IsDigit)
+	return Token{kind: Number, text: is + "." + fs}, nil
 }
 
 // Read Identifier

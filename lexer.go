@@ -107,11 +107,14 @@ func (lx *Lexer) PeekChar() (rune, error) {
 // Read while digit
 // err is EOF
 //  TODO: implement scheme number tower
-func (lx *Lexer) ReadNumber() (Token, error) {
+func (lx *Lexer) ReadNumber(sign rune) (Token, error) {
 	is, size, err := lx.ReadWhile(unicode.IsDigit)
 	// EOF
 	if err != nil && size == 0 {
 		return Token{kind: EOF}, err
+	}
+	if sign == '-' {
+		is = "-" + is
 	}
 
 	r, err := lx.PeekChar()
@@ -237,7 +240,7 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	switch {
 	case unicode.IsDigit(r):
 		lx.reader.UnreadRune()
-		token, err = lx.ReadNumber()
+		token, err = lx.ReadNumber('+')
 	case IsIdentInitial(r):
 		lx.reader.UnreadRune()
 		token, err = lx.ReadIdent()
@@ -248,7 +251,11 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	case r == '"':
 		token, err = lx.ReadString()
 	case r == '+' || r == '-':
-		token = Token{kind: Ident, text: string(r)}
+		if nxt, _ := lx.PeekChar(); unicode.IsDigit(nxt) {
+			token, err = lx.ReadNumber(r)
+		} else {
+			token = Token{kind: Ident, text: string(r)}
+		}
 	case r == ';':
 		token, err = lx.ReadComment()
 	case r == '(':
@@ -296,4 +303,12 @@ func (lx *Lexer) SetString(s string) {
 
 func (lx *Lexer) Token() Token {
 	return lx.token
+}
+
+func (t *Token) Text() string {
+	return t.text
+}
+
+func (t *Token) Kind() int {
+	return t.kind
 }

@@ -17,8 +17,8 @@ type Lexer struct {
 
 // Token
 type Token struct {
-	kind int
-	text string
+	Kind int
+	Text string
 }
 
 const (
@@ -36,30 +36,30 @@ const (
 	Quote
 	QuasiQuote
 	Unquote
-	UnqoteAt
+	UnquoteSplicing
 	Dot
 )
 
 var tokenstring = map[int]string{
-	EOF:        "EOF",
-	Comment:    "Comment",
-	Error:      "Error",
-	Ident:      "Ident",
-	Number:     "Number",
-	Char:       "Char",
-	String:     "String",
-	Open:       "Open",
-	Close:      "Close",
-	OpenVec:    "OpenVec",
-	Quote:      "Quote",
-	QuasiQuote: "QuasiQuote",
-	Unquote:    "Unquote",
-	UnqoteAt:   "UnqoteAt",
-	Dot:        "Dot",
+	EOF:             "EOF",
+	Comment:         "Comment",
+	Error:           "Error",
+	Ident:           "Ident",
+	Number:          "Number",
+	Char:            "Char",
+	String:          "String",
+	Open:            "Open",
+	Close:           "Close",
+	OpenVec:         "OpenVec",
+	Quote:           "quote",
+	QuasiQuote:      "quasiquote",
+	Unquote:         "unquote",
+	UnquoteSplicing: "unqote-splicing",
+	Dot:             "Dot",
 }
 
 func (t Token) String() string {
-	return fmt.Sprintf("%s: %s", tokenstring[t.kind], t.text)
+	return fmt.Sprintf("%s: %s", tokenstring[t.Kind], t.Text)
 }
 
 // SkipSpaces consume spaces
@@ -97,8 +97,8 @@ func (lx *Lexer) ReadWhile(pred func(rune) bool) (s string, size int, err error)
 	}
 }
 
-// PeekChar
-func (lx *Lexer) PeekChar() (rune, error) {
+// PeekRune
+func (lx *Lexer) PeekRune() (rune, error) {
 	defer lx.reader.UnreadRune()
 	r, _, err := lx.reader.ReadRune()
 	return r, err
@@ -111,35 +111,35 @@ func (lx *Lexer) ReadNumber(sign rune) (Token, error) {
 	is, size, err := lx.ReadWhile(unicode.IsDigit)
 	// EOF
 	if err != nil && size == 0 {
-		return Token{kind: EOF}, err
+		return Token{Kind: EOF}, err
 	}
 	if sign == '-' {
 		is = "-" + is
 	}
 
-	r, err := lx.PeekChar()
+	r, err := lx.PeekRune()
 	if err != nil || r != '.' {
-		return Token{kind: Number, text: is}, nil
+		return Token{Kind: Number, Text: is}, nil
 	}
 	lx.reader.ReadRune() // consume dot
 	fs, size, err := lx.ReadWhile(unicode.IsDigit)
-	return Token{kind: Number, text: is + "." + fs}, nil
+	return Token{Kind: Number, Text: is + "." + fs}, nil
 }
 
 // Read Identifier
 func (lx *Lexer) ReadIdent() (Token, error) {
 	initial, _, err := lx.reader.ReadRune()
 	if err != nil {
-		return Token{kind: EOF}, err
+		return Token{Kind: EOF}, err
 	}
 	if !IsIdentInitial(initial) {
-		return Token{kind: Error}, fmt.Errorf("lexer: Illegal identifier %s", string(initial))
+		return Token{Kind: Error}, fmt.Errorf("lexer: Illegal identifier %s", string(initial))
 	}
 
 	// Ignore EOF
 	s, _, _ := lx.ReadWhile(IsIdentSubseq)
 	s = string(initial) + s
-	return Token{kind: Ident, text: s}, nil
+	return Token{Kind: Ident, Text: s}, nil
 }
 
 // Ident character
@@ -154,12 +154,12 @@ func IsIdentSubseq(r rune) bool {
 func (lx *Lexer) ReadDot() (Token, error) {
 	s, size, err := lx.ReadWhile(func(r rune) bool { return r == '.' })
 	if size == 2 {
-		return Token{kind: Ident, text: "..."}, nil
+		return Token{Kind: Ident, Text: "..."}, nil
 	} else if size == 0 {
-		return Token{kind: Dot, text: "."}, nil
+		return Token{Kind: Dot, Text: "."}, nil
 	} else {
 		err = fmt.Errorf("lexer: Illegal dot before %s", s)
-		return Token{kind: Error}, err
+		return Token{Kind: Error}, err
 	}
 }
 
@@ -168,31 +168,44 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 	var token Token
 	r, _, err := lx.reader.ReadRune()
 	if err != nil { // # precede EOF
-		return Token{kind: Error}, fmt.Errorf("lexer: # precede EOF")
+		return Token{Kind: Error}, fmt.Errorf("lexer: # precede EOF")
 	}
 	switch {
 	case r == '(':
-		token = Token{kind: OpenVec, text: "#("}
+		token = Token{Kind: OpenVec, Text: "#("}
 	case r == 't' || r == 'f':
-		token = Token{kind: Boolean, text: string([]rune{'#', r})}
+		token = Token{Kind: Boolean, Text: string([]rune{'#', r})}
 	case r == '\\':
 		// space will be skipped by readident
 		if r, _, err = lx.reader.ReadRune(); unicode.IsSpace(r) {
-			token = Token{kind: Char, text: string(r)}
+			token = Token{Kind: Char, Text: string(r)}
 			break
 		}
 		lx.reader.UnreadRune() // recover from space-check.
 		token, err = lx.ReadIdent()
-		if len(token.text) == 1 || token.text == "newline" || token.text == "space" {
-			token.kind = Char
+		if len(token.Text) == 1 || token.Text == "newline" || token.Text == "space" {
+			token.Kind = Char
 		} else {
-			token.kind = Error
-			err = fmt.Errorf("lexer: #precedes %s", token.text)
+			token.Kind = Error
+			err = fmt.Errorf("lexer: #precedes %s", token.Text)
 		}
 	default:
-		token, err = Token{kind: Error}, fmt.Errorf("lexer: # precede %s", string(r))
+		token, err = Token{Kind: Error}, fmt.Errorf("lexer: # precede %s", string(r))
 	}
 	return token, err
+}
+
+// Read , or ,@
+func (lx *Lexer) ReadUnquote() (Token, error) {
+	r, err := lx.PeekRune()
+	if err != nil {
+		return Token{Kind: Unquote, Text: "unquote"}, nil
+	}
+	if r != '@' {
+		return Token{Kind: Unquote, Text: "unquote"}, nil
+	}
+	lx.reader.ReadRune()
+	return Token{Kind: UnquoteSplicing, Text: "unquote-splicing"}, err
 }
 
 // Read scheme string
@@ -204,13 +217,13 @@ func (lx *Lexer) ReadString() (Token, error) {
 		// EOF check
 		switch {
 		case eof != nil:
-			return Token{kind: EOF}, eof
+			return Token{Kind: EOF}, eof
 		case r == '"':
-			return Token{kind: String, text: string(rs)}, nil
+			return Token{Kind: String, Text: string(rs)}, nil
 		case r == '\\':
 			rr, _, _ := lx.reader.ReadRune()
 			if !(rr == '"' || rr == '\\') {
-				return Token{kind: Error}, fmt.Errorf("lexer: Illegal string elm %s", string(rr))
+				return Token{Kind: Error}, fmt.Errorf("lexer: Illegal string elm %s", string(rr))
 			} else {
 				rs = append(rs, r, rr)
 			}
@@ -223,16 +236,17 @@ func (lx *Lexer) ReadString() (Token, error) {
 // Read comment
 func (lx *Lexer) ReadComment() (Token, error) {
 	s, _, _ := lx.ReadWhile(func(r rune) bool { return r != '\n' })
-	return Token{kind: Comment, text: s}, nil
+	return Token{Kind: Comment, Text: s}, nil
 }
 
 // ReadToken return Token structure
 func (lx *Lexer) ReadToken() (Token, error) {
-
 	var token Token
 	var err error
 	if err = lx.SkipSpaces(); err != nil {
-		return Token{kind: EOF}, err
+		token = Token{Kind: EOF}
+		lx.token = token // not good... same the end of this function
+		return token, err
 	}
 	// SkipSpaces guarantee rune existence
 	r, _, _ := lx.reader.ReadRune()
@@ -251,23 +265,26 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	case r == '"':
 		token, err = lx.ReadString()
 	case r == '+' || r == '-':
-		if nxt, _ := lx.PeekChar(); unicode.IsDigit(nxt) {
+		if nxt, _ := lx.PeekRune(); unicode.IsDigit(nxt) {
 			token, err = lx.ReadNumber(r)
 		} else {
-			token = Token{kind: Ident, text: string(r)}
+			token = Token{Kind: Ident, Text: string(r)}
 		}
 	case r == ';':
 		token, err = lx.ReadComment()
 	case r == '(':
-		token = Token{kind: Open, text: "("}
+		token = Token{Kind: Open, Text: "("}
 	case r == ')':
-		token = Token{kind: Close, text: ")"}
+		token = Token{Kind: Close, Text: ")"}
 	case r == '\'':
-		token = Token{kind: Quote, text: "'"}
+		token = Token{Kind: Quote, Text: "'"}
 	case r == '`':
-		token = Token{kind: QuasiQuote, text: "`"}
+		token = Token{Kind: QuasiQuote, Text: "`"}
+	case r == ',':
+		token, err = lx.ReadUnquote()
 	default:
-		token = Token{kind: Error, text: string(r)}
+		token = Token{Kind: Error, Text: string(r)}
+		err = fmt.Errorf("lexer error: unknown token")
 	}
 	lx.token = token
 	return token, err
@@ -280,7 +297,7 @@ func (lx *Lexer) ReadTokens() ([]Token, error) {
 		token, err := lx.ReadToken()
 		if err != nil {
 			return append(tokens, token), err
-		} else if token.kind == Error {
+		} else if token.Kind == Error {
 			return append(tokens, token), err
 		}
 		tokens = append(tokens, token)
@@ -303,12 +320,4 @@ func (lx *Lexer) SetString(s string) {
 
 func (lx *Lexer) Token() Token {
 	return lx.token
-}
-
-func (t *Token) Text() string {
-	return t.text
-}
-
-func (t *Token) Kind() int {
-	return t.kind
 }

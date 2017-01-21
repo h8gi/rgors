@@ -1,7 +1,6 @@
 package lispy
 
 import (
-	"container/list"
 	"fmt"
 )
 
@@ -10,113 +9,107 @@ const (
 	ASTList
 )
 
-// https://en.wikipedia.org/wiki/Recursive_descent_parser
+var aststring = map[int]string{
+	ASTSimple: "Simple",
+	ASTList:   "List",
+}
+
 type AST struct {
-	kind     int
-	value    Token
-	children []AST
+	Kind     int
+	Value    interface{}
+	Children []AST
 }
 
-type Parser struct {
-	lx     *Lexer
-	result []AST
-}
-
-func (p *Parser) isMatch(kind int) bool {
-	if p.lx.token.kind == kind {
-		return true
+func (ast AST) String() string {
+	if ast.Kind == ASTSimple {
+		return fmt.Sprintf("<%s: %s>", aststring[ast.Kind], ast.Value)
+	} else {
+		return fmt.Sprintf("%s:(%s)", aststring[ast.Kind], ast.Children)
 	}
-	return false
+
 }
 
-func (p *Parser) next() error {
-	tkn, err := p.lx.ReadToken()
-	return err
+func (ast *AST) push(child AST) {
+	ast.Children = append(ast.Children, child)
 }
 
-func (p *Parser) push(ast AST) {
-	p.result = append(p.result, ast)
-}
-
-func (list *AST) push(a AST) {
-	list.children = append(list.children, a)
-}
-
-func (p *Parser) expect(kind int) error {
-	if p.accept(kind) {
+func (lx *Lexer) match(kind int) error {
+	if lx.token.Kind == kind {
+		lx.ReadToken()
 		return nil
+	} else {
+		return fmt.Errorf("unmatch: %+v, %+v", lx.token, kind)
 	}
-	return fmt.Errorf("expect: unexpected token %+v", p.lx.token)
 }
 
-func (p *Parser) Number() error {
-	switch {
-	case p.isMatch(Number):
-		p.push(AST{kind: ASTSimple, value: p.lx.token})
-		p.lx.ReadToken()
-		return nil
+func (lx *Lexer) Datum() (AST, error) {
+	switch lx.token.Kind {
+	case Boolean, Number, Char, String, Ident:
+		return lx.SimpleDatum()
+	case Open:
+		return lx.List()
+	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
+		// lx.match(Quote) // Consume quote
+		// q := AST{Kind: ASTSimple, Value: Token{Kind: Ident, Text: "quote"}}
+		// datum, err := lx.Datum()
+		// children := []AST{q, datum}
+		// return AST{Kind: ASTList, Children: children}, err
+		return lx.Abbrev()
+	case EOF:
+		return AST{}, fmt.Errorf("datum: illegal EOF")
 	default:
-		return fmt.Errorf("expected number...")
+		return AST{}, fmt.Errorf("datum: illegal %+v", lx.token)
 	}
 }
 
-func (p *Parser) Symbol() error {
-	switch {
-	case p.isMatch(Ident):
-		p.push(AST{kind: ASTSimple, value: p.lx.token})
-		p.lx.ReadToken()
-		return nil
-	default:
-		return fmt.Errorf("expected symbol...")
-	}
+func (lx *Lexer) SimpleDatum() (AST, error) {
+	defer lx.ReadToken()
+	token := lx.token
+	return AST{Kind: ASTSimple, Value: token}, nil
 }
 
-func (p *Parser) List() error {
-
-	switch {
-	case p.accept(Open):
-		list = AST{kind: ASTList}
-		for {
-			if p.accept(Close) {
-				p.push(list)
-				return nil
-			}
-			err := p.Expr()
-			if err != nil {
-				return err
-			}
-		}
-	default:
-		return fmt.Errorf("expected open...")
-	}
-}
-
-func (p *Parser) Expr() error {
-	if err := p.Number(); err == nil {
-		return nil
-	}
-	if err := p.Symbol(); err == nil {
-		return nil
-	}
-	if err := p.List(); err == nil {
-		return nil
-	}
-	return fmt.Errorf("expected Expr...")
-}
-
-func (p *Parser) Lispy() error {
-	p.lx.ReadToken()
+// lispy List includes dot list
+func (lx *Lexer) List() (AST, error) {
+	// Consume open paren
+	lx.match(Open)
+	list := AST{Kind: ASTList, Children: make([]AST, 0)}
 	for {
-		if p.accept(EOF) {
-			return nil
-		}
-		err := p.Expr()
-		if err != nil {
-			return err
+		switch lx.token.Kind {
+		case Close:
+			return list, lx.match(Close)
+		case EOF:
+			return list, fmt.Errorf("list: illegal EOF")
+		case Dot: // list should be (<datum>+ . <datum>)
+			dot := AST{Kind: ASTSimple, Value: lx.token}
+			list.push(dot)
+			lx.match(Dot) // consume dot
+			if len(list.Children) < 1 {
+				return list, fmt.Errorf("list: illegal Dot")
+			}
+			lastchild, err := lx.Datum()
+			list.push(lastchild)
+			if err != nil {
+				return list, fmt.Errorf("list: illegal datum after dot, %+v", list)
+			}
+			// Should be closed
+			if err := lx.match(Close); err != nil {
+				return list, fmt.Errorf("list: illegal datum after dot, %+v", list)
+			}
+			return list, nil
+		default:
+			child, err := lx.Datum()
+			list.push(child)
+			if err != nil {
+				return list, err
+			}
 		}
 	}
 }
 
-func (p *Parser) SetLexer(lx *Lexer) {
-	p.lx = lx
+func (lx *Lexer) Abbrev() (AST, error) {
+	head := AST{Kind: ASTSimple, Value: Token{Kind: Ident, Text: tokenstring[lx.token.Kind]}}
+	lx.match(lx.token.Kind) // Consume abbrev head
+	datum, err := lx.Datum()
+	children := []AST{head, datum}
+	return AST{Kind: ASTList, Children: children}, err
 }

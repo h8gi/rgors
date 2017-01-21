@@ -97,6 +97,13 @@ func (lx *Lexer) ReadWhile(pred func(rune) bool) (s string, size int, err error)
 	}
 }
 
+// PeekChar
+func (lx *Lexer) PeekChar() (rune, error) {
+	defer lx.reader.UnreadRune()
+	r, _, err := lx.reader.ReadRune()
+	return r, err
+}
+
 // Read while digit
 // err is EOF
 //  TODO: implement scheme number tower
@@ -112,26 +119,26 @@ func (lx *Lexer) ReadNumber() (Token, error) {
 
 // Read Identifier
 func (lx *Lexer) ReadIdent() (Token, error) {
-	head, _, err := lx.reader.ReadRune()
+	initial, _, err := lx.reader.ReadRune()
 	if err != nil {
 		return Token{kind: EOF}, err
 	}
-	if !IsIdentHead(head) {
-		return Token{kind: Error}, fmt.Errorf("lexer: Illegal identifier %s", string(head))
+	if !IsIdentInitial(initial) {
+		return Token{kind: Error}, fmt.Errorf("lexer: Illegal identifier %s", string(initial))
 	}
 
 	// Ignore EOF
-	s, _, _ := lx.ReadWhile(IsIdentSucc)
-	s = string(head) + s
+	s, _, _ := lx.ReadWhile(IsIdentSubseq)
+	s = string(initial) + s
 	return Token{kind: Ident, text: s}, nil
 }
 
 // Ident character
-func IsIdentHead(r rune) bool {
+func IsIdentInitial(r rune) bool {
 	return strings.ContainsRune("!$%&*/:<=>?^_~", r) || unicode.IsLetter(r)
 }
-func IsIdentSucc(r rune) bool {
-	return IsIdentHead(r) || unicode.IsDigit(r) || strings.ContainsRune("+-.@", r)
+func IsIdentSubseq(r rune) bool {
+	return IsIdentInitial(r) || unicode.IsDigit(r) || strings.ContainsRune("+-.@", r)
 }
 
 // error: EOF or Illegal dot
@@ -225,7 +232,7 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	case unicode.IsDigit(r):
 		lx.reader.UnreadRune()
 		token, err = lx.ReadNumber()
-	case IsIdentHead(r):
+	case IsIdentInitial(r):
 		lx.reader.UnreadRune()
 		token, err = lx.ReadIdent()
 	case r == '.':

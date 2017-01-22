@@ -16,15 +16,15 @@ var aststring = map[int]string{
 
 type AST struct {
 	Kind     int
-	Value    interface{}
+	Token    Token
 	Children []AST
 }
 
 func (ast AST) String() string {
 	if ast.Kind == ASTSimple {
-		return fmt.Sprintf("<%s: %s>", aststring[ast.Kind], ast.Value)
+		return fmt.Sprintf("%s<%s>", aststring[ast.Kind], ast.Token)
 	} else {
-		return fmt.Sprintf("%s:(%s)", aststring[ast.Kind], ast.Children)
+		return fmt.Sprintf("%s<%s>", aststring[ast.Kind], ast.Children)
 	}
 
 }
@@ -50,7 +50,7 @@ func (lx *Lexer) Datum() (AST, error) {
 		return lx.List()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
 		// lx.match(Quote) // Consume quote
-		// q := AST{Kind: ASTSimple, Value: Token{Kind: Ident, Text: "quote"}}
+		// q := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: "quote"}}
 		// datum, err := lx.Datum()
 		// children := []AST{q, datum}
 		// return AST{Kind: ASTList, Children: children}, err
@@ -65,7 +65,7 @@ func (lx *Lexer) Datum() (AST, error) {
 func (lx *Lexer) SimpleDatum() (AST, error) {
 	defer lx.ReadToken()
 	token := lx.token
-	return AST{Kind: ASTSimple, Value: token}, nil
+	return AST{Kind: ASTSimple, Token: token}, nil
 }
 
 // lispy List includes dot list
@@ -80,7 +80,7 @@ func (lx *Lexer) List() (AST, error) {
 		case EOF:
 			return list, fmt.Errorf("list: illegal EOF")
 		case Dot: // list should be (<datum>+ . <datum>)
-			dot := AST{Kind: ASTSimple, Value: lx.token}
+			dot := AST{Kind: ASTSimple, Token: lx.token}
 			list.push(dot)
 			lx.match(Dot) // consume dot
 			if len(list.Children) < 1 {
@@ -107,7 +107,7 @@ func (lx *Lexer) List() (AST, error) {
 }
 
 func (lx *Lexer) Abbrev() (AST, error) {
-	head := AST{Kind: ASTSimple, Value: Token{Kind: Ident, Text: tokenstring[lx.token.Kind]}}
+	head := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[lx.token.Kind]}}
 	lx.match(lx.token.Kind) // Consume abbrev head
 	datum, err := lx.Datum()
 	children := []AST{head, datum}

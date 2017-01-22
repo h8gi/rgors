@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -21,11 +22,13 @@ type Token struct {
 	Kind     int
 	Text     string
 	Position Position
+	Value    interface{}
 }
 
 type Position struct {
 	filename string
-	linum    int
+	row      int
+	total    int
 }
 
 const (
@@ -72,8 +75,9 @@ func (t Token) String() string {
 func (lx *Lexer) ReadRune() (r rune, size int, err error) {
 	r, size, err = lx.reader.ReadRune()
 	if IsNewline(r) {
-		lx.position.linum += 1
+		lx.position.row += 1
 	}
+	lx.position.total += 1
 	return r, size, err
 }
 
@@ -84,8 +88,9 @@ func (lx *Lexer) UnreadRune() error {
 	}
 	r, err := lx.PeekRune()
 	if IsNewline(r) {
-		lx.position.linum -= 1
+		lx.position.row -= 1
 	}
+	lx.position.total -= 1
 	return err
 }
 
@@ -150,11 +155,17 @@ func (lx *Lexer) ReadNumber(sign rune) (Token, error) {
 
 	r, err := lx.PeekRune()
 	if err != nil || r != '.' {
-		return Token{Kind: Number, Text: is}, nil
+		i, err := strconv.Atoi(is)
+		if err != nil {
+			return Token{Kind: Error}, err
+		}
+		return Token{Kind: Number, Text: is, Value: i}, nil
 	}
 	lx.ReadRune() // consume dot
 	fs, size, err := lx.ReadWhile(unicode.IsDigit)
-	return Token{Kind: Number, Text: is + "." + fs}, nil
+	fs = is + "." + fs
+	f, err := strconv.ParseFloat(fs, 64)
+	return Token{Kind: Number, Text: fs, Value: f}, err
 }
 
 // Read Identifier
@@ -201,27 +212,41 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 	if err != nil { // # precede EOF
 		return Token{Kind: Error}, fmt.Errorf("lexer: # precede EOF")
 	}
-	switch {
-	case r == '(':
+	switch r {
+	case '(': // Vector open
 		token = Token{Kind: OpenVec, Text: "#("}
-	case r == 't' || r == 'f':
-		token = Token{Kind: Boolean, Text: string([]rune{'#', r})}
-	case r == '\\':
-		// space will be skipped by readident
-		if r, _, err = lx.ReadRune(); unicode.IsSpace(r) {
-			token = Token{Kind: Char, Text: string(r)}
-			break
-		}
-		lx.UnreadRune() // recover from space-check.
-		token, err = lx.ReadIdent()
-		if len(token.Text) == 1 || token.Text == "newline" || token.Text == "space" {
-			token.Kind = Char
-		} else {
-			token.Kind = Error
-			err = fmt.Errorf("lexer: #precedes %s", token.Text)
-		}
+	case 't':
+		token = Token{Kind: Boolean, Text: "#t", Value: true}
+	case 'f':
+		token = Token{Kind: Boolean, Text: "#f", Value: false}
+	case '\\': // Char
+		token, err = lx.ReadChar()
 	default:
 		token, err = Token{Kind: Error}, fmt.Errorf("lexer: # precede %s", string(r))
+	}
+	return token, err
+}
+
+// e.g. #\a
+func (lx *Lexer) ReadChar() (Token, error) {
+	var token Token
+	var err error
+	// space will be skipped by readident
+	if r, _, err := lx.ReadRune(); unicode.IsSpace(r) {
+		token = Token{Kind: Char, Text: string(r), Value: r}
+		return token, err
+	}
+	lx.UnreadRune() // recover from space-check.
+	token, err = lx.ReadIdent()
+	if len(token.Text) == 1 {
+		token = Token{Kind: Char, Text: token.Text, Value: token.Text[0]}
+	} else if token.Text == "newline" {
+		token = Token{Kind: Char, Text: token.Text, Value: '\n'}
+	} else if token.Text == "space" {
+		token = Token{Kind: Char, Text: token.Text, Value: ' '}
+	} else {
+		token.Kind = Error
+		err = fmt.Errorf("lexer: #precedes %s", token.Text)
 	}
 	return token, err
 }
@@ -250,7 +275,7 @@ func (lx *Lexer) ReadString() (Token, error) {
 		case eof != nil:
 			return Token{Kind: EOF}, eof
 		case r == '"':
-			return Token{Kind: String, Text: string(rs)}, nil
+			return Token{Kind: String, Text: "\"" + string(rs) + "\"", Value: string(rs)}, nil
 		case r == '\\':
 			rr, _, _ := lx.ReadRune()
 			if !(rr == '"' || rr == '\\') {
@@ -272,53 +297,54 @@ func (lx *Lexer) ReadComment() (Token, error) {
 
 // ReadToken return Token structure
 func (lx *Lexer) ReadToken() (Token, error) {
-	var token Token
 	var err error
 	if err = lx.SkipSpaces(); err != nil {
-		token = Token{Kind: EOF}
-		lx.token = token // not good... same the end of this function
-		return token, err
+		lx.token = Token{Kind: EOF, Position: lx.position} // not good... same the end of this function
+		return lx.token, err
 	}
+	// Head of Token is its position
+	headPos := lx.position
+
 	// SkipSpaces guarantee rune existence
 	r, _, _ := lx.ReadRune()
 
 	switch {
 	case unicode.IsDigit(r):
 		lx.UnreadRune()
-		token, err = lx.ReadNumber('+')
+		lx.token, err = lx.ReadNumber('+')
 	case IsIdentInitial(r):
 		lx.UnreadRune()
-		token, err = lx.ReadIdent()
+		lx.token, err = lx.ReadIdent()
 	case r == '.':
-		token, err = lx.ReadDot()
+		lx.token, err = lx.ReadDot()
 	case r == '#':
-		token, err = lx.ReadSharp()
+		lx.token, err = lx.ReadSharp()
 	case r == '"':
-		token, err = lx.ReadString()
+		lx.token, err = lx.ReadString()
 	case r == '+' || r == '-':
 		if nxt, _ := lx.PeekRune(); unicode.IsDigit(nxt) {
-			token, err = lx.ReadNumber(r)
+			lx.token, err = lx.ReadNumber(r)
 		} else {
-			token = Token{Kind: Ident, Text: string(r)}
+			lx.token = Token{Kind: Ident, Text: string(r)}
 		}
 	case r == ';':
-		token, err = lx.ReadComment()
+		lx.token, err = lx.ReadComment()
 	case r == '(':
-		token = Token{Kind: Open, Text: "("}
+		lx.token = Token{Kind: Open, Text: "("}
 	case r == ')':
-		token = Token{Kind: Close, Text: ")"}
+		lx.token = Token{Kind: Close, Text: ")"}
 	case r == '\'':
-		token = Token{Kind: Quote, Text: "'"}
+		lx.token = Token{Kind: Quote, Text: "'"}
 	case r == '`':
-		token = Token{Kind: QuasiQuote, Text: "`"}
+		lx.token = Token{Kind: QuasiQuote, Text: "`"}
 	case r == ',':
-		token, err = lx.ReadUnquote()
+		lx.token, err = lx.ReadUnquote()
 	default:
-		token = Token{Kind: Error, Text: string(r)}
+		lx.token = Token{Kind: Error, Text: string(r)}
 		err = fmt.Errorf("lexer error: unknown token")
 	}
-	lx.token = token
-	return token, err
+	lx.token.Position = headPos
+	return lx.token, err
 }
 
 // return token slice
@@ -341,11 +367,13 @@ func (lx *Lexer) SetFile(name string) {
 	if err != nil {
 		panic(err)
 	}
+	lx.position = Position{filename: name}
 	lx.reader = bufio.NewReader(fp)
 }
 
 // set Lexer's reader
 func (lx *Lexer) SetString(s string) {
+	lx.position = Position{filename: "<stdin>"}
 	lx.reader = strings.NewReader(s)
 }
 

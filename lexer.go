@@ -196,7 +196,7 @@ func (lx *Lexer) ReadIdent() (Token, error) {
 	// Ignore EOF
 	s, _, _ := lx.ReadWhile(IsIdentSubseq)
 	s = string(initial) + s
-	return Token{Kind: Ident, Text: s}, nil
+	return Token{Kind: Ident, Text: s, Value: s}, nil
 }
 
 // Ident character
@@ -211,9 +211,9 @@ func IsIdentSubseq(r rune) bool {
 func (lx *Lexer) ReadDot() (Token, error) {
 	s, size, _ := lx.ReadWhile(func(r rune) bool { return r == '.' })
 	if size == 2 {
-		return Token{Kind: Ident, Text: "..."}, nil
+		return Token{Kind: Ident, Text: "...", Value: "..."}, nil
 	} else if size == 0 {
-		return Token{Kind: Dot, Text: "."}, nil
+		return Token{Kind: Dot, Text: ".", Value: "."}, nil
 	} else {
 		return Token{Kind: Error}, lx.NewError(Dot, "illegal dot before "+s)
 	}
@@ -242,40 +242,23 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 }
 
 // e.g. #\a
+// not support char name (#\newline, #\space)
 func (lx *Lexer) ReadChar() (Token, error) {
-	var token Token
-	var err error
-	// space will be skipped by readident
-	if r, _, err := lx.ReadRune(); unicode.IsSpace(r) {
-		token = Token{Kind: Char, Text: string(r), Value: r}
-		return token, err
-	}
-	lx.UnreadRune() // recover from space-check.
-	token, err = lx.ReadIdent()
-	if len(token.Text) == 1 {
-		token = Token{Kind: Char, Text: token.Text, Value: token.Text[0]}
-	} else if token.Text == "newline" {
-		token = Token{Kind: Char, Text: token.Text, Value: '\n'}
-	} else if token.Text == "space" {
-		token = Token{Kind: Char, Text: token.Text, Value: ' '}
-	} else {
-		token.Kind = Error
-		err = lx.NewError(Char, "#\\"+token.Text)
-	}
-	return token, err
+	r, _, err := lx.ReadRune()
+	return Token{Kind: Char, Text: string(r), Value: r}, err
 }
 
 // Read , or ,@
 func (lx *Lexer) ReadUnquote() (Token, error) {
 	r, err := lx.PeekRune()
 	if err != nil {
-		return Token{Kind: Unquote, Text: "unquote"}, nil
+		return Token{Kind: Unquote, Text: "unquote", Value: "unquote"}, nil
 	}
 	if r != '@' {
-		return Token{Kind: Unquote, Text: "unquote"}, nil
+		return Token{Kind: Unquote, Text: "unquote", Value: "unquote"}, nil
 	}
 	lx.ReadRune()
-	return Token{Kind: UnquoteSplicing, Text: "unquote-splicing"}, err
+	return Token{Kind: UnquoteSplicing, Text: "unquote-splicing", Value: "unquote-splicing"}, err
 }
 
 // Read scheme string
@@ -306,7 +289,7 @@ func (lx *Lexer) ReadString() (Token, error) {
 // Read comment
 func (lx *Lexer) ReadComment() (Token, error) {
 	s, _, _ := lx.ReadWhile(func(r rune) bool { return r != '\n' })
-	return Token{Kind: Comment, Text: s}, nil
+	return Token{Kind: Comment, Text: s, Value: s}, nil
 }
 
 // ReadToken return Token structure
@@ -348,9 +331,9 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	case r == ')':
 		lx.Token = Token{Kind: Close, Text: ")"}
 	case r == '\'':
-		lx.Token = Token{Kind: Quote, Text: "'"}
+		lx.Token = Token{Kind: Quote, Text: "'", Value: "quote"}
 	case r == '`':
-		lx.Token = Token{Kind: QuasiQuote, Text: "`"}
+		lx.Token = Token{Kind: QuasiQuote, Text: "`", Value: "quasiquote"}
 	case r == ',':
 		lx.Token, err = lx.ReadUnquote()
 	default:

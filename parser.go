@@ -4,40 +4,51 @@ import (
 	"fmt"
 )
 
+// Type of Lisp Object
 const (
-	ASTSimple = -(iota + 1)
-	ASTPair
-	ASTNil
+	LispBoolean = -(iota + 1)
+	LispSymbol
+	LispChar
+	LispVector
+	LispProcedure
+	LispPair
+	LispNumber
+	LispString
+	LispPort
+	LispNil
 )
 
-var aststring = map[int]string{
-	ASTSimple: "Simple",
-	ASTPair:   "Pair",
-	ASTNil:    "()",
-}
-
-type AST struct {
-	Kind  int
-	Token Token
-	Car   *AST
-	Cdr   *AST
+type LObj struct {
+	Type  int
+	Value interface{}
+	Car   *LObj
+	Cdr   *LObj
 }
 
 type Parser struct {
 	Lexer
 }
 
-func (ast AST) String() string {
-	switch ast.Kind {
-	case ASTSimple:
-		return fmt.Sprintf("<%s>", ast.Token)
-	case ASTPair:
-		return fmt.Sprintf("(%s . %s)", ast.Car, ast.Cdr)
-	case ASTNil:
-		return fmt.Sprintf("%s", aststring[ASTNil])
+func (obj LObj) String() (text string) {
+	switch obj.Type {
+	case LispBoolean:
+		if obj.Value == true {
+			text = "#t"
+		} else {
+			text = "#f"
+		}
+	case LispPair:
+		text = fmt.Sprintf("(%v . %v)", obj.Car, obj.Cdr)
+	case LispString:
+		text = fmt.Sprintf("\"%v\"", obj.Value)
+	case LispNil:
+		text = "()"
+	case LispChar:
+		text = string(obj.Value.(rune))
 	default:
-		return fmt.Sprintf("???")
+		text = fmt.Sprintf("%v", obj.Value)
 	}
+	return text
 }
 
 func (p *Parser) match(kind int) error {
@@ -56,8 +67,8 @@ func (p *Parser) Start() error {
 
 // Program is list of AST
 // Top level
-func (p *Parser) Program() ([]AST, error) {
-	program := make([]AST, 0)
+func (p *Parser) Program() ([]LObj, error) {
+	program := make([]LObj, 0)
 	for {
 		if p.Token.Kind == EOF {
 			return program, nil
@@ -71,32 +82,66 @@ func (p *Parser) Program() ([]AST, error) {
 }
 
 // one sexpression
-func (p *Parser) Datum() (AST, error) {
+func (p *Parser) Datum() (LObj, error) {
 	switch p.Token.Kind {
 	case Boolean, Number, Char, String, Ident:
 		return p.SimpleDatum()
 	case Open:
-		p.match(Open)
+		p.match(Open) // consume open
 		return p.Pair()
+	case OpenVec:
+		p.match(OpenVec) // consume openvec
+		return p.Vector()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
 		return p.Abbrev()
 	case EOF:
-		return AST{}, fmt.Errorf("datum: illegal EOF")
+		return LObj{}, fmt.Errorf("datum: illegal EOF")
 	default:
-		return AST{}, fmt.Errorf("datum: illegal %+v", p.Token)
+		return LObj{}, fmt.Errorf("datum: illegal %+v", p.Token)
 	}
 }
 
-func (p *Parser) SimpleDatum() (AST, error) {
+func (p *Parser) SimpleDatum() (LObj, error) {
 	defer p.ReadToken()
-	token := p.Token
-	return AST{Kind: ASTSimple, Token: token}, nil
+	var obj LObj
+	switch p.Token.Kind {
+	case Boolean:
+		obj = LObj{Type: LispBoolean, Value: p.Token.Value}
+	case Number:
+		obj = LObj{Type: LispNumber, Value: p.Token.Value}
+	case Char:
+		obj = LObj{Type: LispChar, Value: p.Token.Value}
+	case String:
+		obj = LObj{Type: LispString, Value: p.Token.Value}
+	default:
+		obj = LObj{Type: LispSymbol, Value: p.Token.Value}
+	}
+	return obj, nil
 }
 
-func (p *Parser) Pair() (AST, error) {
+func (p *Parser) Vector() (LObj, error) {
+	var vec = make([]LObj, 0)
+	for {
+		switch p.Token.Kind {
+		case Close:
+			p.match(Close)
+			return LObj{Type: LispVector, Value: vec}, nil
+		case EOF:
+			return LObj{}, fmt.Errorf("vector: illegal EOF")
+		default:
+			elem, err := p.Datum()
+			if err != nil {
+				return elem, err
+			}
+			vec = append(vec, elem)
+		}
+	}
 
-	var car, cdr AST
-	var pair = AST{Kind: ASTPair}
+}
+
+func (p *Parser) Pair() (LObj, error) {
+	var car, cdr LObj
+	var pair = LObj{Type: LispPair}
 	var err error
 
 	// read car
@@ -106,7 +151,7 @@ func (p *Parser) Pair() (AST, error) {
 		return pair, fmt.Errorf("pair: illegal token, %+v", p.Token)
 	case Close:
 		p.match(Close)
-		return AST{Kind: ASTNil}, err
+		return LObj{Type: LispNil}, err
 	default:
 		car, err = p.Datum()
 		pair.Car = &car
@@ -139,24 +184,24 @@ func (p *Parser) Pair() (AST, error) {
 }
 
 // 'a `a ,a ,@a
-func (p *Parser) Abbrev() (AST, error) {
-	pair := AST{Kind: ASTPair}
-	car := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[p.Token.Kind]}}
+func (p *Parser) Abbrev() (LObj, error) {
+	pair := LObj{Type: LispPair}
+	car := LObj{Type: LispSymbol, Value: p.Token.Value}
 	p.match(p.Token.Kind) // Consume abbrev car
 	cdr, err := p.Datum()
 	pair.Car = &car
-	pair.Cdr = &AST{Kind: ASTPair, Car: &cdr, Cdr: &AST{Kind: ASTNil}}
+	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &LObj{Type: LispNil}}
 	return pair, err
 }
 
 // utilities
-func (p *Parser) ParseFile(name string) ([]AST, error) {
+func (p *Parser) ParseFile(name string) ([]LObj, error) {
 	p.SetFile(name)
 	p.Start()
 	return p.Program()
 }
 
-func (p *Parser) ParseString(s string) ([]AST, error) {
+func (p *Parser) ParseString(s string) ([]LObj, error) {
 	p.SetString(s)
 	p.Start()
 	return p.Program()

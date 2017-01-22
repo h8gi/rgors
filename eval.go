@@ -1,5 +1,8 @@
 package lispy
 
-func EvalProgram(expr []AST) {
+type Environment struct {
+}
+
+func EvalProgram(expr []LObj) {
 
 }

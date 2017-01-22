@@ -7,19 +7,20 @@ import (
 const (
 	ASTSimple = -(iota + 1)
 	ASTList
-	ASTProgram
 )
 
 var aststring = map[int]string{
-	ASTSimple:  "Simple",
-	ASTList:    "List",
-	ASTProgram: "Program",
+	ASTSimple: "Simple",
+	ASTList:   "List",
+	ASTPair:   "Pair",
 }
 
 type AST struct {
 	Kind     int
 	Token    Token
 	Children []AST
+	Car      AST
+	Cdr      AST
 }
 
 type Parser struct {
@@ -52,14 +53,16 @@ func (p *Parser) Start() error {
 	return err
 }
 
-func (p *Parser) Program() (AST, error) {
-	program := AST{Kind: ASTProgram, Children: make([]AST, 0)}
+// Program is list of AST
+// Top level
+func (p *Parser) Program() ([]AST, error) {
+	program := make([]AST, 0)
 	for {
 		if p.Token.Kind == EOF {
 			return program, nil
 		}
 		child, err := p.Datum()
-		program.push(child)
+		program = append(program, child)
 		if err != nil {
 			return program, err
 		}
@@ -94,7 +97,7 @@ func (p *Parser) List() (AST, error) {
 	list := AST{Kind: ASTList, Children: make([]AST, 0)}
 	for {
 		switch p.Token.Kind {
-		case Close:
+		case Close: // enf of list
 			return list, p.match(Close)
 		case EOF:
 			return list, fmt.Errorf("list: illegal EOF")
@@ -135,13 +138,13 @@ func (p *Parser) Abbrev() (AST, error) {
 }
 
 // utilities
-func (p *Parser) ParseFile(name string) (AST, error) {
+func (p *Parser) ParseFile(name string) ([]AST, error) {
 	p.SetFile(name)
 	p.Start()
 	return p.Program()
 }
 
-func (p *Parser) ParseString(s string) (AST, error) {
+func (p *Parser) ParseString(s string) ([]AST, error) {
 	p.SetString(s)
 	p.Start()
 	return p.Program()

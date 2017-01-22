@@ -20,11 +20,15 @@ type AST struct {
 	Children []AST
 }
 
+type Parser struct {
+	Lexer
+}
+
 func (ast AST) String() string {
 	if ast.Kind == ASTSimple {
-		return fmt.Sprintf("%s<%s>", aststring[ast.Kind], ast.Token)
+		return fmt.Sprintf("<%s>", ast.Token)
 	} else {
-		return fmt.Sprintf("%s<%s>", aststring[ast.Kind], ast.Children)
+		return fmt.Sprintf("<List:%s>", ast.Children)
 	}
 
 }
@@ -34,37 +38,32 @@ func (ast *AST) push(child AST) {
 }
 
 func (lx *Lexer) match(kind int) error {
-	if lx.token.Kind == kind {
+	if lx.Token.Kind == kind {
 		lx.ReadToken()
 		return nil
 	} else {
-		return fmt.Errorf("unmatch: %+v, %+v", lx.token, kind)
+		return fmt.Errorf("unmatch: %+v, %+v", lx.Token, kind)
 	}
 }
 
 func (lx *Lexer) Datum() (AST, error) {
-	switch lx.token.Kind {
+	switch lx.Token.Kind {
 	case Boolean, Number, Char, String, Ident:
 		return lx.SimpleDatum()
 	case Open:
 		return lx.List()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
-		// lx.match(Quote) // Consume quote
-		// q := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: "quote"}}
-		// datum, err := lx.Datum()
-		// children := []AST{q, datum}
-		// return AST{Kind: ASTList, Children: children}, err
 		return lx.Abbrev()
 	case EOF:
 		return AST{}, fmt.Errorf("datum: illegal EOF")
 	default:
-		return AST{}, fmt.Errorf("datum: illegal %+v", lx.token)
+		return AST{}, fmt.Errorf("datum: illegal %+v", lx.Token)
 	}
 }
 
 func (lx *Lexer) SimpleDatum() (AST, error) {
 	defer lx.ReadToken()
-	token := lx.token
+	token := lx.Token
 	return AST{Kind: ASTSimple, Token: token}, nil
 }
 
@@ -74,13 +73,13 @@ func (lx *Lexer) List() (AST, error) {
 	lx.match(Open)
 	list := AST{Kind: ASTList, Children: make([]AST, 0)}
 	for {
-		switch lx.token.Kind {
+		switch lx.Token.Kind {
 		case Close:
 			return list, lx.match(Close)
 		case EOF:
 			return list, fmt.Errorf("list: illegal EOF")
 		case Dot: // list should be (<datum>+ . <datum>)
-			dot := AST{Kind: ASTSimple, Token: lx.token}
+			dot := AST{Kind: ASTSimple, Token: lx.Token}
 			list.push(dot)
 			lx.match(Dot) // consume dot
 			if len(list.Children) < 1 {
@@ -106,9 +105,10 @@ func (lx *Lexer) List() (AST, error) {
 	}
 }
 
+// 'a `a ,a ,@a
 func (lx *Lexer) Abbrev() (AST, error) {
-	head := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[lx.token.Kind]}}
-	lx.match(lx.token.Kind) // Consume abbrev head
+	head := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[lx.Token.Kind]}}
+	lx.match(lx.Token.Kind) // Consume abbrev head
 	datum, err := lx.Datum()
 	children := []AST{head, datum}
 	return AST{Kind: ASTList, Children: children}, err

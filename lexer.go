@@ -12,8 +12,8 @@ import (
 
 // Lexer
 type Lexer struct {
-	reader   io.RuneScanner
-	token    Token
+	Reader   io.RuneScanner
+	Token    Token
 	position Position
 }
 
@@ -69,11 +69,11 @@ var tokenstring = map[int]string{
 }
 
 func (t Token) String() string {
-	return fmt.Sprintf("%s: %s", tokenstring[t.Kind], t.Text)
+	return fmt.Sprintf("%s:%s", tokenstring[t.Kind], t.Text)
 }
 
 func (lx *Lexer) ReadRune() (r rune, size int, err error) {
-	r, size, err = lx.reader.ReadRune()
+	r, size, err = lx.Reader.ReadRune()
 	if IsNewline(r) {
 		lx.position.row += 1
 	}
@@ -82,7 +82,7 @@ func (lx *Lexer) ReadRune() (r rune, size int, err error) {
 }
 
 func (lx *Lexer) UnreadRune() error {
-	err := lx.reader.UnreadRune()
+	err := lx.Reader.UnreadRune()
 	if err != nil {
 		return err
 	}
@@ -135,8 +135,8 @@ func (lx *Lexer) ReadWhile(pred func(rune) bool) (s string, size int, err error)
 
 // PeekRune
 func (lx *Lexer) PeekRune() (rune, error) {
-	defer lx.reader.UnreadRune()
-	r, _, err := lx.reader.ReadRune()
+	defer lx.Reader.UnreadRune()
+	r, _, err := lx.Reader.ReadRune()
 	return r, err
 }
 
@@ -299,8 +299,8 @@ func (lx *Lexer) ReadComment() (Token, error) {
 func (lx *Lexer) ReadToken() (Token, error) {
 	var err error
 	if err = lx.SkipSpaces(); err != nil {
-		lx.token = Token{Kind: EOF, Position: lx.position} // not good... same the end of this function
-		return lx.token, err
+		lx.Token = Token{Kind: EOF, Position: lx.position} // not good... same the end of this function
+		return lx.Token, err
 	}
 	// Head of Token is its position
 	headPos := lx.position
@@ -311,40 +311,40 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	switch {
 	case unicode.IsDigit(r):
 		lx.UnreadRune()
-		lx.token, err = lx.ReadNumber('+')
+		lx.Token, err = lx.ReadNumber('+')
 	case IsIdentInitial(r):
 		lx.UnreadRune()
-		lx.token, err = lx.ReadIdent()
+		lx.Token, err = lx.ReadIdent()
 	case r == '.':
-		lx.token, err = lx.ReadDot()
+		lx.Token, err = lx.ReadDot()
 	case r == '#':
-		lx.token, err = lx.ReadSharp()
+		lx.Token, err = lx.ReadSharp()
 	case r == '"':
-		lx.token, err = lx.ReadString()
+		lx.Token, err = lx.ReadString()
 	case r == '+' || r == '-':
 		if nxt, _ := lx.PeekRune(); unicode.IsDigit(nxt) {
-			lx.token, err = lx.ReadNumber(r)
+			lx.Token, err = lx.ReadNumber(r)
 		} else {
-			lx.token = Token{Kind: Ident, Text: string(r)}
+			lx.Token = Token{Kind: Ident, Text: string(r)}
 		}
 	case r == ';':
-		lx.token, err = lx.ReadComment()
+		lx.Token, err = lx.ReadComment()
 	case r == '(':
-		lx.token = Token{Kind: Open, Text: "("}
+		lx.Token = Token{Kind: Open, Text: "("}
 	case r == ')':
-		lx.token = Token{Kind: Close, Text: ")"}
+		lx.Token = Token{Kind: Close, Text: ")"}
 	case r == '\'':
-		lx.token = Token{Kind: Quote, Text: "'"}
+		lx.Token = Token{Kind: Quote, Text: "'"}
 	case r == '`':
-		lx.token = Token{Kind: QuasiQuote, Text: "`"}
+		lx.Token = Token{Kind: QuasiQuote, Text: "`"}
 	case r == ',':
-		lx.token, err = lx.ReadUnquote()
+		lx.Token, err = lx.ReadUnquote()
 	default:
-		lx.token = Token{Kind: Error, Text: string(r)}
+		lx.Token = Token{Kind: Error, Text: string(r)}
 		err = fmt.Errorf("lexer error: unknown token")
 	}
-	lx.token.Position = headPos
-	return lx.token, err
+	lx.Token.Position = headPos
+	return lx.Token, err
 }
 
 // return token slice
@@ -361,22 +361,18 @@ func (lx *Lexer) ReadTokens() ([]Token, error) {
 	}
 }
 
-// set Lexer's reader
+// set Lexer's Reader
 func (lx *Lexer) SetFile(name string) {
 	fp, err := os.Open(name)
 	if err != nil {
 		panic(err)
 	}
 	lx.position = Position{filename: name}
-	lx.reader = bufio.NewReader(fp)
+	lx.Reader = bufio.NewReader(fp)
 }
 
-// set Lexer's reader
+// set Lexer's Reader
 func (lx *Lexer) SetString(s string) {
 	lx.position = Position{filename: "<stdin>"}
-	lx.reader = strings.NewReader(s)
-}
-
-func (lx *Lexer) Token() Token {
-	return lx.token
+	lx.Reader = strings.NewReader(s)
 }

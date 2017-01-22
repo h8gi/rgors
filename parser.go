@@ -6,21 +6,21 @@ import (
 
 const (
 	ASTSimple = -(iota + 1)
-	ASTList
+	ASTPair
+	ASTNil
 )
 
 var aststring = map[int]string{
 	ASTSimple: "Simple",
-	ASTList:   "List",
 	ASTPair:   "Pair",
+	ASTNil:    "()",
 }
 
 type AST struct {
-	Kind     int
-	Token    Token
-	Children []AST
-	Car      AST
-	Cdr      AST
+	Kind  int
+	Token Token
+	Car   *AST
+	Cdr   *AST
 }
 
 type Parser struct {
@@ -28,15 +28,16 @@ type Parser struct {
 }
 
 func (ast AST) String() string {
-	if ast.Kind == ASTSimple {
+	switch ast.Kind {
+	case ASTSimple:
 		return fmt.Sprintf("<%s>", ast.Token)
-	} else {
-		return fmt.Sprintf("<%s:%s>", aststring[ast.Kind], ast.Children)
+	case ASTPair:
+		return fmt.Sprintf("(%s . %s)", ast.Car, ast.Cdr)
+	case ASTNil:
+		return fmt.Sprintf("%s", aststring[ASTNil])
+	default:
+		return fmt.Sprintf("???")
 	}
-}
-
-func (ast *AST) push(child AST) {
-	ast.Children = append(ast.Children, child)
 }
 
 func (p *Parser) match(kind int) error {
@@ -69,12 +70,14 @@ func (p *Parser) Program() ([]AST, error) {
 	}
 }
 
+// one sexpression
 func (p *Parser) Datum() (AST, error) {
 	switch p.Token.Kind {
 	case Boolean, Number, Char, String, Ident:
 		return p.SimpleDatum()
 	case Open:
-		return p.List()
+		// return p.List()
+		return p.Pair()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
 		return p.Abbrev()
 	case EOF:
@@ -90,51 +93,67 @@ func (p *Parser) SimpleDatum() (AST, error) {
 	return AST{Kind: ASTSimple, Token: token}, nil
 }
 
-// lispy List includes dot list
-func (p *Parser) List() (AST, error) {
+func (p *Parser) Pair() (AST, error) {
 	// Consume open paren
 	p.match(Open)
-	list := AST{Kind: ASTList, Children: make([]AST, 0)}
-	for {
+	// var pair = AST{Kind: ASTPair}
+	// var err error
+
+	var innerPair func() (AST, error)
+	innerPair = func() (AST, error) {
+		var car, cdr AST
+		var pair = AST{Kind: ASTPair}
+		var err error
+
+		// read car
 		switch p.Token.Kind {
-		case Close: // enf of list
-			return list, p.match(Close)
-		case EOF:
-			return list, fmt.Errorf("list: illegal EOF")
-		case Dot: // list should be (<datum>+ . <datum>)
-			dot := AST{Kind: ASTSimple, Token: p.Token}
-			list.push(dot)
-			p.match(Dot) // consume dot
-			if len(list.Children) < 1 {
-				return list, fmt.Errorf("list: illegal Dot")
-			}
-			lastchild, err := p.Datum()
-			list.push(lastchild)
-			if err != nil {
-				return list, fmt.Errorf("list: illegal datum after dot, %+v", list)
-			}
-			// Should be closed
-			if err := p.match(Close); err != nil {
-				return list, fmt.Errorf("list: illegal datum after dot, %+v", list)
-			}
-			return list, nil
+		case EOF, Dot:
+			p.match(Dot)
+			return pair, fmt.Errorf("pair: illegal token, %+v", p.Token)
+		case Close:
+			return AST{Kind: ASTNil}, err
 		default:
-			child, err := p.Datum()
-			list.push(child)
+			car, err = p.Datum()
+			pair.Car = &car
 			if err != nil {
-				return list, err
+				return pair, err
 			}
 		}
+		// read cdr
+		switch p.Token.Kind {
+		case Dot: // (car . cdr)
+			err = p.match(Dot) // consume dot
+			if err != nil {
+				return pair, fmt.Errorf("pair: %s", err.Error())
+			}
+			cdr, err = p.Datum() // read cdr
+			pair.Cdr = &cdr
+			if err != nil {
+				return pair, err
+			}
+
+			if err = p.match(Close); err != nil {
+				err = fmt.Errorf("pair: %s", err.Error())
+			}
+			return pair, err
+		default: // (a b ...)
+			cdr, err = innerPair()
+			pair.Cdr = &cdr
+			return pair, err
+		}
 	}
+	return innerPair()
 }
 
 // 'a `a ,a ,@a
 func (p *Parser) Abbrev() (AST, error) {
-	head := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[p.Token.Kind]}}
-	p.match(p.Token.Kind) // Consume abbrev head
-	datum, err := p.Datum()
-	children := []AST{head, datum}
-	return AST{Kind: ASTList, Children: children}, err
+	pair := AST{Kind: ASTPair}
+	car := AST{Kind: ASTSimple, Token: Token{Kind: Ident, Text: tokenstring[p.Token.Kind]}}
+	p.match(p.Token.Kind) // Consume abbrev car
+	cdr, err := p.Datum()
+	pair.Car = &car
+	pair.Cdr = &AST{Kind: ASTPair, Car: &cdr, Cdr: &AST{Kind: ASTNil}}
+	return pair, err
 }
 
 // utilities

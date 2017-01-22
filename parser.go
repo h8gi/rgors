@@ -94,6 +94,9 @@ func (p *Parser) Datum() (LObj, error) {
 		return p.Vector()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
 		return p.Abbrev()
+	case Comment:
+		p.match(Comment)
+		return p.Datum()
 	case EOF:
 		return LObj{}, fmt.Errorf("datum: illegal EOF")
 	default:

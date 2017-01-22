@@ -76,7 +76,7 @@ func (p *Parser) Datum() (AST, error) {
 	case Boolean, Number, Char, String, Ident:
 		return p.SimpleDatum()
 	case Open:
-		// return p.List()
+		p.match(Open)
 		return p.Pair()
 	case Quote, QuasiQuote, Unquote, UnquoteSplicing:
 		return p.Abbrev()
@@ -94,55 +94,48 @@ func (p *Parser) SimpleDatum() (AST, error) {
 }
 
 func (p *Parser) Pair() (AST, error) {
-	// Consume open paren
-	p.match(Open)
-	// var pair = AST{Kind: ASTPair}
-	// var err error
 
-	var innerPair func() (AST, error)
-	innerPair = func() (AST, error) {
-		var car, cdr AST
-		var pair = AST{Kind: ASTPair}
-		var err error
+	var car, cdr AST
+	var pair = AST{Kind: ASTPair}
+	var err error
 
-		// read car
-		switch p.Token.Kind {
-		case EOF, Dot:
-			p.match(Dot)
-			return pair, fmt.Errorf("pair: illegal token, %+v", p.Token)
-		case Close:
-			return AST{Kind: ASTNil}, err
-		default:
-			car, err = p.Datum()
-			pair.Car = &car
-			if err != nil {
-				return pair, err
-			}
-		}
-		// read cdr
-		switch p.Token.Kind {
-		case Dot: // (car . cdr)
-			err = p.match(Dot) // consume dot
-			if err != nil {
-				return pair, fmt.Errorf("pair: %s", err.Error())
-			}
-			cdr, err = p.Datum() // read cdr
-			pair.Cdr = &cdr
-			if err != nil {
-				return pair, err
-			}
-
-			if err = p.match(Close); err != nil {
-				err = fmt.Errorf("pair: %s", err.Error())
-			}
-			return pair, err
-		default: // (a b ...)
-			cdr, err = innerPair()
-			pair.Cdr = &cdr
+	// read car
+	switch p.Token.Kind {
+	case EOF, Dot:
+		p.match(Dot)
+		return pair, fmt.Errorf("pair: illegal token, %+v", p.Token)
+	case Close:
+		p.match(Close)
+		return AST{Kind: ASTNil}, err
+	default:
+		car, err = p.Datum()
+		pair.Car = &car
+		if err != nil {
 			return pair, err
 		}
 	}
-	return innerPair()
+	// read cdr
+	switch p.Token.Kind {
+	case Dot: // (car . cdr)
+		err = p.match(Dot) // consume dot
+		if err != nil {
+			return pair, fmt.Errorf("pair: %s", err.Error())
+		}
+		cdr, err = p.Datum() // read cdr
+		pair.Cdr = &cdr
+		if err != nil {
+			return pair, err
+		}
+
+		if err = p.match(Close); err != nil {
+			err = fmt.Errorf("pair: %s", err.Error())
+		}
+		return pair, err
+	default: // (a b ...)
+		cdr, err = p.Pair()
+		pair.Cdr = &cdr
+		return pair, err
+	}
 }
 
 // 'a `a ,a ,@a

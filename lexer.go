@@ -31,6 +31,21 @@ type Position struct {
 	total    int
 }
 
+type LexerError struct {
+	Kind     int      // token kind
+	Text     string   // message
+	Position Position // Occur at
+}
+
+func (e *LexerError) Error() string {
+	return fmt.Sprintf("lexer error: %s(%s) at line %d",
+		tokenstring[e.Kind], e.Text, e.Position)
+}
+
+func (lx *Lexer) NewError(kind int, text string) *LexerError {
+	return &LexerError{Kind: kind, Text: text, Position: lx.position}
+}
+
 const (
 	EOF = -(iota + 1)
 	Error
@@ -147,7 +162,7 @@ func (lx *Lexer) ReadNumber(sign rune) (Token, error) {
 	is, size, err := lx.ReadWhile(unicode.IsDigit)
 	// EOF
 	if err != nil && size == 0 {
-		return Token{Kind: EOF}, err
+		return Token{Kind: EOF}, lx.NewError(EOF, "EOF")
 	}
 	if sign == '-' {
 		is = "-" + is
@@ -157,7 +172,7 @@ func (lx *Lexer) ReadNumber(sign rune) (Token, error) {
 	if err != nil || r != '.' {
 		i, err := strconv.Atoi(is)
 		if err != nil {
-			return Token{Kind: Error}, err
+			return Token{Kind: Error}, lx.NewError(Number, "parse number")
 		}
 		return Token{Kind: Number, Text: is, Value: i}, nil
 	}
@@ -175,7 +190,7 @@ func (lx *Lexer) ReadIdent() (Token, error) {
 		return Token{Kind: EOF}, err
 	}
 	if !IsIdentInitial(initial) {
-		return Token{Kind: Error}, fmt.Errorf("lexer: Illegal identifier %s", string(initial))
+		return Token{Kind: Error}, lx.NewError(Ident, "illegal identifier")
 	}
 
 	// Ignore EOF
@@ -194,14 +209,13 @@ func IsIdentSubseq(r rune) bool {
 
 // error: EOF or Illegal dot
 func (lx *Lexer) ReadDot() (Token, error) {
-	s, size, err := lx.ReadWhile(func(r rune) bool { return r == '.' })
+	s, size, _ := lx.ReadWhile(func(r rune) bool { return r == '.' })
 	if size == 2 {
 		return Token{Kind: Ident, Text: "..."}, nil
 	} else if size == 0 {
 		return Token{Kind: Dot, Text: "."}, nil
 	} else {
-		err = fmt.Errorf("lexer: Illegal dot before %s", s)
-		return Token{Kind: Error}, err
+		return Token{Kind: Error}, lx.NewError(Dot, "illegal dot before "+s)
 	}
 }
 
@@ -210,7 +224,7 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 	var token Token
 	r, _, err := lx.ReadRune()
 	if err != nil { // # precede EOF
-		return Token{Kind: Error}, fmt.Errorf("lexer: # precede EOF")
+		return Token{Kind: Error}, lx.NewError(EOF, "nothing after #")
 	}
 	switch r {
 	case '(': // Vector open
@@ -222,7 +236,7 @@ func (lx *Lexer) ReadSharp() (Token, error) {
 	case '\\': // Char
 		token, err = lx.ReadChar()
 	default:
-		token, err = Token{Kind: Error}, fmt.Errorf("lexer: # precede %s", string(r))
+		token, err = Token{Kind: Error}, lx.NewError(Error, string(r)+"after #")
 	}
 	return token, err
 }
@@ -246,7 +260,7 @@ func (lx *Lexer) ReadChar() (Token, error) {
 		token = Token{Kind: Char, Text: token.Text, Value: ' '}
 	} else {
 		token.Kind = Error
-		err = fmt.Errorf("lexer: #precedes %s", token.Text)
+		err = lx.NewError(Char, "#\\"+token.Text)
 	}
 	return token, err
 }
@@ -273,13 +287,13 @@ func (lx *Lexer) ReadString() (Token, error) {
 		// EOF check
 		switch {
 		case eof != nil:
-			return Token{Kind: EOF}, eof
+			return Token{Kind: Error}, lx.NewError(EOF, "string not finished")
 		case r == '"':
 			return Token{Kind: String, Text: "\"" + string(rs) + "\"", Value: string(rs)}, nil
 		case r == '\\':
 			rr, _, _ := lx.ReadRune()
 			if !(rr == '"' || rr == '\\') {
-				return Token{Kind: Error}, fmt.Errorf("lexer: Illegal string elm %s", string(rr))
+				return Token{Kind: Error}, lx.NewError(String, "illegal string element "+string(rr))
 			} else {
 				rs = append(rs, r, rr)
 			}
@@ -300,7 +314,7 @@ func (lx *Lexer) ReadToken() (Token, error) {
 	var err error
 	if err = lx.SkipSpaces(); err != nil {
 		lx.Token = Token{Kind: EOF, Position: lx.position} // not good... same the end of this function
-		return lx.Token, err
+		return lx.Token, lx.NewError(EOF, "skip spaces")
 	}
 	// Head of Token is its position
 	headPos := lx.position
@@ -341,7 +355,7 @@ func (lx *Lexer) ReadToken() (Token, error) {
 		lx.Token, err = lx.ReadUnquote()
 	default:
 		lx.Token = Token{Kind: Error, Text: string(r)}
-		err = fmt.Errorf("lexer error: unknown token")
+		err = lx.NewError(Error, "unknown token")
 	}
 	lx.Token.Position = headPos
 	return lx.Token, err

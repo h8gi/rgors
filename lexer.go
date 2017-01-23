@@ -37,9 +37,13 @@ type LexerError struct {
 	Position Position // Occur at
 }
 
+func (e *UnclosedError) Error() string {
+	return fmt.Sprintf("Unclosed %s", e.Text)
+}
+
 func (e *LexerError) Error() string {
 	return fmt.Sprintf("lexer error: %s(%s) at line %d",
-		tokenstring[e.Kind], e.Text, e.Position)
+		tokenstring[e.Kind], e.Text, e.Position.row)
 }
 
 func (lx *Lexer) NewError(kind int, text string) *LexerError {
@@ -270,7 +274,7 @@ func (lx *Lexer) ReadString() (Token, error) {
 		// EOF check
 		switch {
 		case eof != nil:
-			return Token{Kind: Error}, lx.NewError(EOF, "string not finished")
+			return Token{Kind: Error}, eof
 		case r == '"':
 			return Token{Kind: String, Text: "\"" + string(rs) + "\"", Value: string(rs)}, nil
 		case r == '\\':

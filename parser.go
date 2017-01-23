@@ -29,6 +29,10 @@ type Parser struct {
 	Lexer
 }
 
+type UnclosedError struct {
+	Text string
+}
+
 func (obj LObj) String() (text string) {
 	switch obj.Type {
 	case LispBoolean:
@@ -98,14 +102,15 @@ func (p *Parser) Datum() (LObj, error) {
 		p.match(Comment)
 		return p.Datum()
 	case EOF:
-		return LObj{}, fmt.Errorf("datum: illegal EOF")
+		// return LObj{}, fmt.Errorf("datum: illegal EOF")
+		return LObj{}, &UnclosedError{Text: "datum"}
 	default:
-		return LObj{}, fmt.Errorf("datum: illegal %+v", p.Token)
+		// return LObj{}, fmt.Errorf("datum: illegal %+v", p.Token)
+		return LObj{}, &UnclosedError{Text: "datum"}
 	}
 }
 
 func (p *Parser) SimpleDatum() (LObj, error) {
-	defer p.ReadToken()
 	var obj LObj
 	switch p.Token.Kind {
 	case Boolean:
@@ -119,6 +124,7 @@ func (p *Parser) SimpleDatum() (LObj, error) {
 	default:
 		obj = LObj{Type: LispSymbol, Value: p.Token.Value}
 	}
+	p.ReadToken()
 	return obj, nil
 }
 
@@ -130,7 +136,7 @@ func (p *Parser) Vector() (LObj, error) {
 			p.match(Close)
 			return LObj{Type: LispVector, Value: vec}, nil
 		case EOF:
-			return LObj{}, fmt.Errorf("vector: illegal EOF")
+			return LObj{}, &UnclosedError{Text: "vector"}
 		default:
 			elem, err := p.Datum()
 			if err != nil {
@@ -139,7 +145,6 @@ func (p *Parser) Vector() (LObj, error) {
 			vec = append(vec, elem)
 		}
 	}
-
 }
 
 func (p *Parser) Pair() (LObj, error) {
@@ -149,9 +154,11 @@ func (p *Parser) Pair() (LObj, error) {
 
 	// read car
 	switch p.Token.Kind {
-	case EOF, Dot:
+	case Dot:
 		p.match(Dot)
-		return pair, fmt.Errorf("pair: illegal token, %+v", p.Token)
+		return pair, fmt.Errorf("pair: illegal Dot")
+	case EOF:
+		return pair, &UnclosedError{Text: ")"}
 	case Close:
 		p.match(Close)
 		return LObj{Type: LispNil}, err
@@ -165,9 +172,9 @@ func (p *Parser) Pair() (LObj, error) {
 	// read cdr
 	switch p.Token.Kind {
 	case Dot: // (car . cdr)
-		err = p.match(Dot) // consume dot
-		if err != nil {
-			return pair, fmt.Errorf("pair: %s", err.Error())
+		p.match(Dot) // consume dot
+		if p.Token.Kind == EOF {
+			return pair, &UnclosedError{Text: ")"}
 		}
 		cdr, err = p.Datum() // read cdr
 		pair.Cdr = &cdr
@@ -176,7 +183,7 @@ func (p *Parser) Pair() (LObj, error) {
 		}
 
 		if err = p.match(Close); err != nil {
-			err = fmt.Errorf("pair: %s", err.Error())
+			err = &UnclosedError{Text: ")"}
 		}
 		return pair, err
 	default: // (a b ...)

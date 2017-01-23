@@ -50,17 +50,29 @@ func Eval(expr LObj, env Environment) (LObj, error) {
 
 func EvalPair(pair LObj, env Environment) (LObj, error) {
 	var err error
+	var fun LObj
 	switch pair.Car.Type {
 	case LispBoolean, LispChar, LispVector, LispNumber, LispString, LispPort, LispNil:
-		return pair.Car, fmt.Errorf("call of non-procedure: %v", pair.Car)
+		return *pair.Car, fmt.Errorf("call of non-procedure: %v", pair.Car)
 	case LispProcedure:
-		return Apply(pair.Car, pair.Cdr)
+		return Apply(*pair.Car, *pair.Cdr)
 	default:
-		fun, err := Eval(pair.Car)
-		return Apply(fun, pair.Cdr)
+		fun, err = Eval(*pair.Car, env)
+		return Apply(fun, *pair.Cdr)
 	}
 	return pair, err
 }
 func EvalSymbol(sym LObj, env Environment) (LObj, error) {
 	return env.LookUp(sym)
+}
+
+// List functions
+func ListRef(pair LObj, n int) {
+
+}
+
+func Apply(fun LObj, args LObj) (LObj, error) {
+	var result LObj
+	var err error
+	return result, err
 }

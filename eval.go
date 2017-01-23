@@ -56,12 +56,20 @@ func EvalPair(pair LObj, env Environment) (LObj, error) {
 		return *pair.Car, fmt.Errorf("call of non-procedure: %v", pair.Car)
 	case LispProcedure:
 		return Apply(*pair.Car, *pair.Cdr)
+	case LispSymbol:
+		switch pair.Car.Value {
+		case "quote":
+			return *pair.Cdr.Car, err
+		default:
+			return fun, err
+		}
 	default:
 		fun, err = Eval(*pair.Car, env)
 		return Apply(fun, *pair.Cdr)
 	}
 	return pair, err
 }
+
 func EvalSymbol(sym LObj, env Environment) (LObj, error) {
 	return env.LookUp(sym)
 }

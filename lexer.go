@@ -274,7 +274,7 @@ func (lx *Lexer) ReadString() (Token, error) {
 		// EOF check
 		switch {
 		case eof != nil:
-			return Token{Kind: Error}, eof
+			return Token{Kind: EOF}, &UnclosedError{Text: "unclosed string"}
 		case r == '"':
 			return Token{Kind: String, Text: "\"" + string(rs) + "\"", Value: string(rs)}, nil
 		case r == '\\':

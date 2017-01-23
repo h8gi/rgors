@@ -10,7 +10,8 @@ const (
 	LispSymbol
 	LispChar
 	LispVector
-	LispProcedure
+	LispProcedure // built in
+	LispClosure   // compound
 	LispPair
 	LispNumber
 	LispString
@@ -33,6 +34,20 @@ type UnclosedError struct {
 	Text string
 }
 
+func (obj LObj) pairString() string {
+	var text string
+	text = fmt.Sprintf("%v", *obj.Car)
+	switch obj.Cdr.Type {
+	case LispNil:
+		text += ")"
+	case LispPair:
+		text += " " + obj.Cdr.pairString()
+	default:
+		text += " . " + obj.Cdr.String() + ")"
+	}
+	return text
+}
+
 func (obj LObj) String() (text string) {
 	switch obj.Type {
 	case LispBoolean:
@@ -42,7 +57,7 @@ func (obj LObj) String() (text string) {
 			text = "#f"
 		}
 	case LispPair:
-		text = fmt.Sprintf("(%v . %v)", obj.Car, obj.Cdr)
+		text = fmt.Sprintf("(%v", obj.pairString())
 	case LispString:
 		text = fmt.Sprintf("\"%v\"", obj.Value)
 	case LispNil:
@@ -102,11 +117,9 @@ func (p *Parser) Datum() (LObj, error) {
 		p.match(Comment)
 		return p.Datum()
 	case EOF:
-		// return LObj{}, fmt.Errorf("datum: illegal EOF")
-		return LObj{}, &UnclosedError{Text: "datum"}
+		return LObj{}, fmt.Errorf("datum: illegal EOF")
 	default:
-		// return LObj{}, fmt.Errorf("datum: illegal %+v", p.Token)
-		return LObj{}, &UnclosedError{Text: "datum"}
+		return LObj{}, fmt.Errorf("datum: illegal %+v", p.Token)
 	}
 }
 
@@ -183,7 +196,11 @@ func (p *Parser) Pair() (LObj, error) {
 		}
 
 		if err = p.match(Close); err != nil {
-			err = &UnclosedError{Text: ")"}
+			if p.Token.Kind == EOF {
+				err = &UnclosedError{Text: ")"}
+			} else {
+				err = fmt.Errorf("illegal token after dot")
+			}
 		}
 		return pair, err
 	default: // (a b ...)

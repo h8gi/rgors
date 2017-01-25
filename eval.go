@@ -4,27 +4,10 @@ import (
 	"fmt"
 )
 
-type Environment struct {
-	Frame     map[string]LObj
-	Enclosing *Environment
-}
-
-func (env *Environment) LookUp(sym LObj) (LObj, error) {
-	obj, ok := env.Frame[sym.String()]
-	if ok {
-		return obj, nil
-	}
-	nextenv := env.Enclosing
-	if nextenv == nil {
-		return sym, fmt.Errorf("unbound variable: %v", sym)
-	}
-	return nextenv.LookUp(sym)
-}
-
 func EvalProgram(program []LObj) (LObj, error) {
 	var err error
 	var result LObj
-	env := Environment{Frame: map[string]LObj{"a": LObj{Type: LispNumber, Value: 12}}}
+	env := Environment{Frame: Frame{"a": LObj{Type: LispNumber, Value: 12}}}
 	for _, expr := range program {
 		result, err = Eval(expr, env)
 		if err != nil {

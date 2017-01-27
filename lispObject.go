@@ -7,20 +7,20 @@ import (
 // Lisp object is used as AST, Lisp code, and secd machine code
 // Type of Lisp Object
 const (
-	LispBoolean = -(iota + 1)
-	LispSymbol
-	LispChar
-	LispVector
-	LispBuiltin // built in, Value is go function
-	LispClosure // compound car is code, cdr is env
-	LispPair
-	LispNumber
-	LispString
-	LispPort
-	LispNull
+	LispTBoolean = -(iota + 1)
+	LispTSymbol
+	LispTChar
+	LispTVector
+	LispTBuiltin // built in, Value is go function
+	LispTClosure // compound car is code, cdr is env
+	LispTPair
+	LispTNumber
+	LispTString
+	LispTPort
+	LispTNull
 )
 
-// car & cdr is only used when Type is LispPair
+// car & cdr is only used when Type is LispTPair
 type LObj struct {
 	Type  int
 	Value interface{}
@@ -29,18 +29,18 @@ type LObj struct {
 }
 
 // utilities
-var lispFalse = LObj{Type: LispBoolean, Value: false}
-var lispTrue = LObj{Type: LispBoolean, Value: true}
-var lispNull = LObj{Type: LispNull}
+var LispFalse = LObj{Type: LispTBoolean, Value: false}
+var LispTrue = LObj{Type: LispTBoolean, Value: true}
+var LispNull = LObj{Type: LispTNull}
 
 // pair to string (recursive)
 func (obj LObj) pairString() string {
 	var text string
 	text = fmt.Sprintf("%v", *obj.Car)
 	switch obj.Cdr.Type {
-	case LispNull:
+	case LispTNull:
 		text += ")"
-	case LispPair:
+	case LispTPair:
 		text += " " + obj.Cdr.pairString()
 	default:
 		text += " . " + obj.Cdr.String() + ")"
@@ -50,19 +50,19 @@ func (obj LObj) pairString() string {
 
 func (obj LObj) String() (text string) {
 	switch obj.Type {
-	case LispBoolean:
+	case LispTBoolean:
 		if obj.Value == true {
 			text = "#t"
 		} else {
 			text = "#f"
 		}
-	case LispPair:
+	case LispTPair:
 		text = fmt.Sprintf("(%v", obj.pairString())
-	case LispString:
+	case LispTString:
 		text = fmt.Sprintf("\"%v\"", obj.Value)
-	case LispNull:
+	case LispTNull:
 		text = "()"
-	case LispChar:
+	case LispTChar:
 		text = string(obj.Value.(rune))
 	default:
 		text = fmt.Sprintf("%v", obj.Value)
@@ -72,35 +72,35 @@ func (obj LObj) String() (text string) {
 
 // convert lisp object to go bool
 func (obj LObj) ToBool() bool {
-	return !(obj.Type == LispBoolean && !obj.Value.(bool))
+	return !(obj.Type == LispTBoolean && !obj.Value.(bool))
 }
 
 // predicates
 func (obj LObj) IsBoolean() bool {
-	return obj.Type == LispBoolean
+	return obj.Type == LispTBoolean
 }
 
 func (obj LObj) IsPair() bool {
-	return obj.Type == LispPair
+	return obj.Type == LispTPair
 }
 
 func (obj LObj) IsSymbol() bool {
-	return obj.Type == LispSymbol
+	return obj.Type == LispTSymbol
 }
 
-func (obj LObj) IsNull() bool {
-	return obj.Type == LispNull
+func (obj LObj) IsLispNull() bool {
+	return obj.Type == LispTNull
 }
 
 func (obj LObj) IsNumber() bool {
-	return obj.Type == LispNumber
+	return obj.Type == LispTNumber
 }
 
 func (obj LObj) IsList() bool {
 	if obj.IsPair() {
 		return obj.Cdr.IsList()
 	}
-	return obj.IsNull()
+	return obj.IsLispNull()
 }
 
 // List utilities
@@ -110,7 +110,7 @@ func (obj LObj) SafeCar() (LObj, error) {
 	if obj.IsPair() {
 		return *obj.Car, nil
 	} else {
-		return lispFalse, fmt.Errorf("car: %v is not pair", obj)
+		return LispFalse, fmt.Errorf("car: %v is not pair", obj)
 	}
 }
 
@@ -119,7 +119,7 @@ func (obj LObj) SafeCdr() (LObj, error) {
 	if obj.IsPair() {
 		return *obj.Cdr, nil
 	} else {
-		return lispFalse, fmt.Errorf("cdr: %v is not pair", obj)
+		return LispFalse, fmt.Errorf("cdr: %v is not pair", obj)
 	}
 }
 
@@ -142,18 +142,18 @@ func (obj LObj) SetCdr(cdr LObj) error {
 }
 
 func Cons(car, cdr LObj) LObj {
-	return LObj{Type: LispPair, Car: &car, Cdr: &cdr}
+	return LObj{Type: LispTPair, Car: &car, Cdr: &cdr}
 }
 
 func (obj LObj) ListRef(n int) (LObj, error) {
 	var err error
 	// range check
 	if n < 0 {
-		return lispFalse, fmt.Errorf("list-ref: out of range, %d", n)
+		return LispFalse, fmt.Errorf("list-ref: out of range, %d", n)
 	}
 	// null check
-	if obj.IsNull() {
-		return lispFalse, fmt.Errorf("list-ref: null value")
+	if obj.IsLispNull() {
+		return LispFalse, fmt.Errorf("list-ref: null value")
 	}
 	// cdr down loop
 	for {
@@ -194,20 +194,20 @@ func (sym1 LObj) SymEq(sym2 LObj) bool {
 
 // compare by pointer (incomplete)
 // TODO: intern symbol
-func (obj1 LObj) Eq(obj2 LObj) bool {
+func (obj1 *LObj) Eq(obj2 *LObj) bool {
 	if obj1.IsSymbol() && obj2.IsSymbol() {
 		return obj1.Value == obj2.Value
 	}
-	if obj1.IsNull() && obj2.IsNull() {
+	if obj1.IsLispNull() && obj2.IsLispNull() {
 		return true
 	}
-	return &obj1 == &obj2
+	return *obj1 == *obj2
 }
 
 // reuturn: pair or #f
 func (alist LObj) Assq(sym LObj) (LObj, error) {
-	if alist.IsNull() {
-		return lispFalse, nil
+	if alist.IsLispNull() {
+		return LispFalse, nil
 	}
 
 	pair, err := alist.SafeCar()
@@ -218,22 +218,25 @@ func (alist LObj) Assq(sym LObj) (LObj, error) {
 	if err != nil {
 		return pair, err
 	}
-	if sym.Eq(compsym) {
+	if sym.Eq(&compsym) {
 		return pair, nil
 	}
 	return alist.Cdr.Assq(sym)
 }
 
-func NewSymbol(s string) (LObj, error) {
-	obj, err := (&Parser{}).str2expr(s)
-	if err != nil || obj.IsSymbol() {
-		return obj, err
+var symbolTable map[string]LObj = make(map[string]LObj, 0)
+
+func NewSymbol(s string) LObj {
+	sym, ok := symbolTable[s] // search intern table
+	if ok {
+		return sym
 	}
-	return obj, fmt.Errorf("not symbol: %v", obj)
+	symbolTable[s] = LObj{Type: LispTSymbol, Value: s} // intern
+	return symbolTable[s]                              // return symbol
 }
 
 func NewList(objs ...LObj) LObj {
-	pair := lispNull
+	pair := LispNull
 	for i := len(objs) - 1; i >= 0; i-- {
 		pair = Cons(objs[i], pair)
 	}

@@ -70,19 +70,18 @@ func (p *Parser) SimpleDatum() (LObj, error) {
 	switch p.Token.Kind {
 	case Boolean:
 		if p.Token.Value.(bool) {
-			obj = lispTrue
+			obj = LispTrue
 		} else {
-			obj = lispFalse
+			obj = LispFalse
 		}
 	case Number:
-		obj = LObj{Type: LispNumber, Value: p.Token.Value}
+		obj = LObj{Type: LispTNumber, Value: p.Token.Value}
 	case Char:
-		obj = LObj{Type: LispChar, Value: p.Token.Value}
+		obj = LObj{Type: LispTChar, Value: p.Token.Value}
 	case String:
-		obj = LObj{Type: LispString, Value: p.Token.Value}
+		obj = LObj{Type: LispTString, Value: p.Token.Value}
 	default:
-		obj = LObj{Type: LispSymbol, Value: p.Token.Value}
-
+		obj = NewSymbol(p.Token.Value.(string))
 	}
 	p.ReadToken()
 	return obj, nil
@@ -94,7 +93,7 @@ func (p *Parser) Vector() (LObj, error) {
 		switch p.Token.Kind {
 		case Close:
 			p.match(Close)
-			return LObj{Type: LispVector, Value: vec}, nil
+			return LObj{Type: LispTVector, Value: vec}, nil
 		case EOF:
 			return LObj{}, &UnclosedError{Text: "vector"}
 		default:
@@ -109,7 +108,7 @@ func (p *Parser) Vector() (LObj, error) {
 
 func (p *Parser) Pair() (LObj, error) {
 	var car, cdr LObj
-	var pair = LObj{Type: LispPair}
+	var pair = LObj{Type: LispTPair}
 	var err error
 
 	// read car
@@ -121,7 +120,7 @@ func (p *Parser) Pair() (LObj, error) {
 		return pair, &UnclosedError{Text: ")"}
 	case Close:
 		p.match(Close)
-		return lispNull, err
+		return LispNull, err
 	default:
 		car, err = p.Datum()
 		pair.Car = &car
@@ -159,12 +158,12 @@ func (p *Parser) Pair() (LObj, error) {
 
 // 'a `a ,a ,@a
 func (p *Parser) Abbrev() (LObj, error) {
-	pair := LObj{Type: LispPair}
-	car := LObj{Type: LispSymbol, Value: p.Token.Value}
+	pair := LObj{Type: LispTPair}
+	car := NewSymbol(p.Token.Value.(string))
 	p.match(p.Token.Kind) // Consume abbrev car
 	cdr, err := p.Datum()
 	pair.Car = &car
-	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &lispNull}
+	pair.Cdr = &LObj{Type: LispTPair, Car: &cdr, Cdr: &LispNull}
 	return pair, err
 }
 

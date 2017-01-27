@@ -5,14 +5,14 @@ import (
 )
 
 func NewEnv() *LObj {
-	env := Cons(lispNull, lispNull)
+	env := Cons(LispNull, LispNull)
 	return &env
 }
 
 // about environment (list of alist)
 func (env *LObj) LookUp(sym LObj) (LObj, error) {
-	if env.IsNull() {
-		return lispFalse, fmt.Errorf("unbound variable: %v", sym)
+	if env.IsLispNull() {
+		return LispFalse, fmt.Errorf("unbound variable: %v", sym)
 	}
 	currentEnv, err := env.SafeCar()
 	if err != nil {
@@ -44,16 +44,16 @@ func (parent *LObj) Extend(child *LObj) *LObj {
 
 func InitialEnv() *LObj {
 	var lispAdd2 = LObj{
-		Type: LispBuiltin,
+		Type: LispTBuiltin,
 		Value: func(obj1, obj2 LObj) (LObj, error) {
 			if obj1.IsNumber() && obj2.IsNumber() {
 				return LObj{Type: Number, Value: obj1.Value.(float64) + obj2.Value.(float64)}, nil
 			} else {
-				return lispFalse, fmt.Errorf("not number's %v + %v", obj1, obj2)
+				return LispFalse, fmt.Errorf("not number's %v + %v", obj1, obj2)
 			}
 		},
 	}
-	sym, _ := NewSymbol("+")
+	sym := NewSymbol("+")
 	env := NewEnv()
 	env.Define(sym, lispAdd2)
 	return env
@@ -62,7 +62,7 @@ func InitialEnv() *LObj {
 // closure
 func NewClosure(code LObj, env LObj) LObj {
 	return LObj{
-		Type: LispClosure,
+		Type: LispTClosure,
 		Car:  &code,
 		Cdr:  &env,
 	}
@@ -75,11 +75,11 @@ func (closure *LObj) Env() *LObj {
 	return closure.Cdr
 }
 
-// var lispPlus = LObj{Type: LispBuiltin, Value: LispAdd2}
-// var initFrame = lispNull
+// var lispPlus = LObj{Type: LispTBuiltin, Value: LispTAdd2}
+// var initFrame = LispNull
 
 // initFrame.Push(Cons(NewSymbol("+"), lispPlus))
-// var InitEnv = Cons(initFrame, lispNull)
+// var InitEnv = Cons(initFrame, LispNull)
 
 type SECD struct {
 	Stack       *LObj
@@ -100,53 +100,53 @@ type SECD struct {
 // rap: ap命令と類似しているが、ダミー環境と組み合わせて、再帰関数を実現するのに使われる。
 // car、cdr、リスト構築、整数の加算、入出力といった基本的な関数も命令として存在する。これらは必要な引数をスタックから得る。
 // stop: stop 命令
-func (secd *SECD) step() error {
-	sym, err := secd.Code.Pop()
-	if err != nil {
-		return err
-	}
-	switch sym.String() {
-	case "nil":
-		secd.Stack.Push(lispFalse)
-	case "ldc":
-		cst, err := secd.Code.Pop()
-		if err != nil {
-			return err
-		}
-		secd.Stack.Push(cst)
-	case "ld":
-		sym, err := secd.Code.Pop()
-		if err != nil {
-			return err
-		}
-		val, err := secd.Environment.LookUp(sym)
-		if err != nil {
-			return err
-		}
-		secd.Stack.Push(val)
-	case "sel":
-		flag, _ := secd.Stack.Pop()
-		truecode, _ := secd.Code.Pop()
-		falsecode, _ := secd.Code.Pop()
-		secd.Dump.Push(*secd.Code)
-		if flag.ToBool() {
-			*secd.Code = truecode
-		} else {
-			*secd.Code = falsecode
-		}
-	case "join":
-		c, err := secd.Dump.Pop()
-		if err != nil {
-			return err
-		}
-		*secd.Code = c
-	case "ldf":
-		code, err := secd.Code.Pop()
-		if err != nil {
-			return err
-		}
-		closure := NewClosure(code, *secd.Environment)
-		secd.Stack.Push(closure)
+// func (secd *SECD) step() error {
+// 	sym, err := secd.Code.Pop()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	switch sym.String() {
+// 	case "nil":
+// 		secd.Stack.Push(LispFalse)
+// 	case "ldc":
+// 		cst, err := secd.Code.Pop()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		secd.Stack.Push(cst)
+// 	case "ld":
+// 		sym, err := secd.Code.Pop()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		val, err := secd.Environment.LookUp(sym)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		secd.Stack.Push(val)
+// 	case "sel":
+// 		flag, _ := secd.Stack.Pop()
+// 		truecode, _ := secd.Code.Pop()
+// 		falsecode, _ := secd.Code.Pop()
+// 		secd.Dump.Push(*secd.Code)
+// 		if flag.ToBool() {
+// 			*secd.Code = truecode
+// 		} else {
+// 			*secd.Code = falsecode
+// 		}
+// 	case "join":
+// 		c, err := secd.Dump.Pop()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		*secd.Code = c
+// 	case "ldf":
+// 		code, err := secd.Code.Pop()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		closure := NewClosure(code, *secd.Environment)
+// 		secd.Stack.Push(closure)
 
-	}
-}
+// 	}
+// }

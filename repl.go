@@ -23,7 +23,7 @@ func Repl() {
 	var line string
 	var err error
 	var contFlag bool
-	fmt.Println("Lispy Version 0.0.0.0.1")
+	fmt.Println("LispTy Version 0.0.0.0.1")
 	fmt.Println("Press Ctrl+c to Exit")
 	rl, err := readline.New("lispy> ")
 	if err != nil {
@@ -61,7 +61,7 @@ func Repl() {
 
 		for _, expr := range program {
 			fmt.Println(expr)
-			fmt.Println(expr.Assq(LObj{Type: LispSymbol, Value: "foo"}))
+			fmt.Println(expr.Assq(LObj{Type: LispTSymbol, Value: "foo"}))
 		}
 
 		// obj, err := EvalProgram(program)

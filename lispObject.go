@@ -192,16 +192,9 @@ func (sym1 LObj) SymEq(sym2 LObj) bool {
 	return sym1.IsSymbol() && sym2.IsSymbol() && (sym1.String() == sym2.String())
 }
 
-// compare by pointer (incomplete)
-// TODO: intern symbol
-func (obj1 *LObj) Eq(obj2 *LObj) bool {
-	if obj1.IsSymbol() && obj2.IsSymbol() {
-		return obj1.Value == obj2.Value
-	}
-	if obj1.IsLispNull() && obj2.IsLispNull() {
-		return true
-	}
-	return *obj1 == *obj2
+// compare by pointer
+func (obj1 LObj) Eq(obj2 LObj) bool {
+	return obj1 == obj2
 }
 
 // reuturn: pair or #f
@@ -218,7 +211,7 @@ func (alist LObj) Assq(sym LObj) (LObj, error) {
 	if err != nil {
 		return pair, err
 	}
-	if sym.Eq(&compsym) {
+	if sym.Eq(compsym) {
 		return pair, nil
 	}
 	return alist.Cdr.Assq(sym)

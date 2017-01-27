@@ -61,14 +61,7 @@ func Repl() {
 
 		for _, expr := range program {
 			fmt.Println(expr)
-			fmt.Println(expr.Assq(LObj{Type: LispTSymbol, Value: "foo"}))
+			fmt.Println(expr.Assq(NewSymbol("foo")))
 		}
-
-		// obj, err := EvalProgram(program)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	continue
-		// }
-		// fmt.Printf("%v\n", obj)
 	}
 }

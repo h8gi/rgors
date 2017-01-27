@@ -100,50 +100,53 @@ type SECD struct {
 // rap: ap命令と類似しているが、ダミー環境と組み合わせて、再帰関数を実現するのに使われる。
 // car、cdr、リスト構築、整数の加算、入出力といった基本的な関数も命令として存在する。これらは必要な引数をスタックから得る。
 // stop: stop 命令
-// func (secd *SECD) step() error {
-// 	sym, err := secd.Code.Pop()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	switch sym.String() {
-// 	case "nil":
-// 		secd.Stack.Push(lispFalse)
-// 	case "ldc":
-// 		cst, err := secd.Code.Pop()
-// 		if err != nil {
-// 			return err
-// 		}
-// 		secd.Stack.Push(cst)
-// 	case "ld":
-// 		sym, err := secd.Code.Pop()
-// 		if err != nil {
-// 			return err
-// 		}
-// 		val, err := secd.Environment.LookUp(sym)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		secd.Stack.Push(val)
-// 	case "sel":
-// 		flag, _ := secd.Stack.Pop()
-// 		truecode, _ := secd.Code.Pop()
-// 		falsecode, _ := secd.Code.Pop()
-// 		secd.Dump.Push(*secd.Stack)
-// 		if flag.ToBool() {
-// 			*secd.Code = truecode
-// 		} else {
-// 			*secd.Code = falsecode
-// 		}
-// 	case "join":
-// 		c, err := secd.Dump.Pop()
-// 		if err != nil {
-// 			return err
-// 		}
-// 		*secd.Code = c
-// 	case "ldf":
-// 		c, err := secd.Code.Pop()
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// }
+func (secd *SECD) step() error {
+	sym, err := secd.Code.Pop()
+	if err != nil {
+		return err
+	}
+	switch sym.String() {
+	case "nil":
+		secd.Stack.Push(lispFalse)
+	case "ldc":
+		cst, err := secd.Code.Pop()
+		if err != nil {
+			return err
+		}
+		secd.Stack.Push(cst)
+	case "ld":
+		sym, err := secd.Code.Pop()
+		if err != nil {
+			return err
+		}
+		val, err := secd.Environment.LookUp(sym)
+		if err != nil {
+			return err
+		}
+		secd.Stack.Push(val)
+	case "sel":
+		flag, _ := secd.Stack.Pop()
+		truecode, _ := secd.Code.Pop()
+		falsecode, _ := secd.Code.Pop()
+		secd.Dump.Push(*secd.Code)
+		if flag.ToBool() {
+			*secd.Code = truecode
+		} else {
+			*secd.Code = falsecode
+		}
+	case "join":
+		c, err := secd.Dump.Pop()
+		if err != nil {
+			return err
+		}
+		*secd.Code = c
+	case "ldf":
+		code, err := secd.Code.Pop()
+		if err != nil {
+			return err
+		}
+		closure := NewClosure(code, *secd.Environment)
+		secd.Stack.Push(closure)
+
+	}
+}

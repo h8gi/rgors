@@ -81,7 +81,7 @@ func (closure *LObj) Env() *LObj {
 // initFrame.Push(Cons(NewSymbol("+"), lispPlus))
 // var InitEnv = Cons(initFrame, lispNull)
 
-type Secd struct {
+type SECD struct {
 	Stack       *LObj
 	Environment *LObj
 	Code        *LObj
@@ -100,7 +100,7 @@ type Secd struct {
 // rap: ap命令と類似しているが、ダミー環境と組み合わせて、再帰関数を実現するのに使われる。
 // car、cdr、リスト構築、整数の加算、入出力といった基本的な関数も命令として存在する。これらは必要な引数をスタックから得る。
 // stop: stop 命令
-// func (secd *Secd) step() error {
+// func (secd *SECD) step() error {
 // 	sym, err := secd.Code.Pop()
 // 	if err != nil {
 // 		return err

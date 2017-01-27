@@ -12,7 +12,7 @@ const (
 	LispChar
 	LispVector
 	LispBuiltin // built in, Value is go function
-	LispClosure   // compound car is code, cdr is env
+	LispClosure // compound car is code, cdr is env
 	LispPair
 	LispNumber
 	LispString
@@ -192,6 +192,8 @@ func (sym1 LObj) SymEq(sym2 LObj) bool {
 	return sym1.IsSymbol() && sym2.IsSymbol() && (sym1.String() == sym2.String())
 }
 
+// compare by pointer (incomplete)
+// TODO: intern symbol
 func (obj1 LObj) Eq(obj2 LObj) bool {
 	if obj1.IsSymbol() && obj2.IsSymbol() {
 		return obj1.Value == obj2.Value
@@ -202,7 +204,7 @@ func (obj1 LObj) Eq(obj2 LObj) bool {
 	return &obj1 == &obj2
 }
 
-// pair or #f
+// reuturn: pair or #f
 func (alist LObj) Assq(sym LObj) (LObj, error) {
 	if alist.IsNull() {
 		return lispFalse, nil
@@ -228,4 +230,12 @@ func NewSymbol(s string) (LObj, error) {
 		return obj, err
 	}
 	return obj, fmt.Errorf("not symbol: %v", obj)
+}
+
+func NewList(objs ...LObj) LObj {
+	pair := lispNull
+	for i := len(objs) - 1; i >= 0; i-- {
+		pair = Cons(objs[i], pair)
+	}
+	return pair
 }

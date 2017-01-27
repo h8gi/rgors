@@ -11,8 +11,8 @@ const (
 	LispSymbol
 	LispChar
 	LispVector
-	LispProcedure // built in
-	LispClosure   // compound
+	LispProcedure // built in, Value is go function
+	LispClosure   // compound car is code, cdr is env
 	LispPair
 	LispNumber
 	LispString

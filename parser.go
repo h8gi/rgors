@@ -69,7 +69,11 @@ func (p *Parser) SimpleDatum() (LObj, error) {
 	var obj LObj
 	switch p.Token.Kind {
 	case Boolean:
-		obj = LObj{Type: LispBoolean, Value: p.Token.Value}
+		if p.Token.Value.(bool) {
+			obj = lispTrue
+		} else {
+			obj = lispFalse
+		}
 	case Number:
 		obj = LObj{Type: LispNumber, Value: p.Token.Value}
 	case Char:
@@ -117,7 +121,7 @@ func (p *Parser) Pair() (LObj, error) {
 		return pair, &UnclosedError{Text: ")"}
 	case Close:
 		p.match(Close)
-		return LObj{Type: LispNull}, err
+		return lispNull, err
 	default:
 		car, err = p.Datum()
 		pair.Car = &car
@@ -160,7 +164,7 @@ func (p *Parser) Abbrev() (LObj, error) {
 	p.match(p.Token.Kind) // Consume abbrev car
 	cdr, err := p.Datum()
 	pair.Car = &car
-	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &LObj{Type: LispNull}}
+	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &lispNull}
 	return pair, err
 }
 

@@ -217,3 +217,24 @@ func (alist LObj) Assq(sym LObj) (LObj, error) {
 	}
 	return alist.Cdr.Assq(sym)
 }
+
+func (env LObj) LookUp(sym LObj) (LObj, error) {
+	if env.IsNull() {
+		return lispFalse, fmt.Errorf("unbound variable: %v", sym)
+	}
+	currentEnv, err := env.SafeCar()
+	if err != nil {
+		return env, err
+	}
+	// lookup current environment
+	pair, err := currentEnv.Assq(sym)
+	if err != nil {
+		return currentEnv, err
+	}
+	// found!
+	if pair.ToBool() {
+		return *pair.Cdr, nil
+	}
+	// not found
+	return env.Cdr.LookUp(sym)
+}

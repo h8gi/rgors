@@ -4,28 +4,9 @@ import (
 	"fmt"
 )
 
-type Frame map[string]LObj
-
-type Environment struct {
-	Frame
-	Enclosing *Environment
-}
-
-func (env *Environment) LookUp(sym LObj) (LObj, error) {
-	obj, ok := env.Frame[sym.String()]
-	if ok {
-		return obj, nil
-	}
-	nextenv := env.Enclosing
-	if nextenv == nil {
-		return sym, fmt.Errorf("unbound variable: %v", sym)
-	}
-	return nextenv.LookUp(sym)
-}
-
 type Secd struct {
 	Stack       *LObj
-	Environment *Environment
+	Environment *LObj
 	Code        *LObj
 	Dump        *LObj
 }

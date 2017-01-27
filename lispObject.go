@@ -11,7 +11,7 @@ const (
 	LispSymbol
 	LispChar
 	LispVector
-	LispProcedure // built in, Value is go function
+	LispBuiltin // built in, Value is go function
 	LispClosure   // compound car is code, cdr is env
 	LispPair
 	LispNumber
@@ -90,6 +90,10 @@ func (obj LObj) IsSymbol() bool {
 
 func (obj LObj) IsNull() bool {
 	return obj.Type == LispNull
+}
+
+func (obj LObj) IsNumber() bool {
+	return obj.Type == LispNumber
 }
 
 func (obj LObj) IsList() bool {
@@ -218,23 +222,10 @@ func (alist LObj) Assq(sym LObj) (LObj, error) {
 	return alist.Cdr.Assq(sym)
 }
 
-func (env LObj) LookUp(sym LObj) (LObj, error) {
-	if env.IsNull() {
-		return lispFalse, fmt.Errorf("unbound variable: %v", sym)
+func NewSymbol(s string) (LObj, error) {
+	obj, err := (&Parser{}).str2expr(s)
+	if err != nil || obj.IsSymbol() {
+		return obj, err
 	}
-	currentEnv, err := env.SafeCar()
-	if err != nil {
-		return env, err
-	}
-	// lookup current environment
-	pair, err := currentEnv.Assq(sym)
-	if err != nil {
-		return currentEnv, err
-	}
-	// found!
-	if pair.ToBool() {
-		return *pair.Cdr, nil
-	}
-	// not found
-	return env.Cdr.LookUp(sym)
+	return obj, fmt.Errorf("not symbol: %v", obj)
 }

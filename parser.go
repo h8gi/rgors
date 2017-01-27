@@ -180,3 +180,9 @@ func (p *Parser) ParseString(s string) ([]LObj, error) {
 	p.Start()
 	return p.Program()
 }
+
+func (p *Parser) str2expr(s string) (LObj, error) {
+	p.SetString(s)
+	p.Start()
+	return p.Datum()
+}

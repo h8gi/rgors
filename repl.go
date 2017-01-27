@@ -44,7 +44,7 @@ func Repl() {
 		if err != nil {
 			break
 		}
-		// display(&p, line)
+		display(&p, line)
 		program, err := p.ParseString(line)
 
 		if err != nil {
@@ -59,15 +59,16 @@ func Repl() {
 			}
 		}
 
-		// for _, ast := range program {
-		// 	fmt.Println(ast)
-		// }
-
-		obj, err := EvalProgram(program)
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
+		for _, expr := range program {
+			fmt.Println(expr)
+			fmt.Println(expr.Assq(LObj{Type: LispSymbol, Value: "foo"}))
 		}
-		fmt.Printf("%v\n", obj)
+
+		// obj, err := EvalProgram(program)
+		// if err != nil {
+		// 	fmt.Println(err.Error())
+		// 	continue
+		// }
+		// fmt.Printf("%v\n", obj)
 	}
 }

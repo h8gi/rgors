@@ -78,6 +78,7 @@ func (p *Parser) SimpleDatum() (LObj, error) {
 		obj = LObj{Type: LispString, Value: p.Token.Value}
 	default:
 		obj = LObj{Type: LispSymbol, Value: p.Token.Value}
+
 	}
 	p.ReadToken()
 	return obj, nil
@@ -116,7 +117,7 @@ func (p *Parser) Pair() (LObj, error) {
 		return pair, &UnclosedError{Text: ")"}
 	case Close:
 		p.match(Close)
-		return LObj{Type: LispNil}, err
+		return LObj{Type: LispNull}, err
 	default:
 		car, err = p.Datum()
 		pair.Car = &car
@@ -141,7 +142,7 @@ func (p *Parser) Pair() (LObj, error) {
 			if p.Token.Kind == EOF {
 				err = &UnclosedError{Text: ")"}
 			} else {
-				err = fmt.Errorf("illegal token after dot")
+				err = fmt.Errorf("missing close paren \")\"")
 			}
 		}
 		return pair, err
@@ -159,7 +160,7 @@ func (p *Parser) Abbrev() (LObj, error) {
 	p.match(p.Token.Kind) // Consume abbrev car
 	cdr, err := p.Datum()
 	pair.Car = &car
-	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &LObj{Type: LispNil}}
+	pair.Cdr = &LObj{Type: LispPair, Car: &cdr, Cdr: &LObj{Type: LispNull}}
 	return pair, err
 }
 

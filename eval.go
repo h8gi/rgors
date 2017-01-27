@@ -35,7 +35,7 @@ func EvalPair(pair LObj, env Environment) (LObj, error) {
 	var err error
 	var fun LObj
 	switch pair.Car.Type {
-	case LispBoolean, LispChar, LispVector, LispNumber, LispString, LispPort, LispNil:
+	case LispBoolean, LispChar, LispVector, LispNumber, LispString, LispPort, LispNull:
 		return *pair.Car, fmt.Errorf("call of non-procedure: %v", pair.Car)
 	case LispProcedure:
 		return Apply(*pair.Car, *pair.Cdr)

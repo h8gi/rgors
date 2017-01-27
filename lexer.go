@@ -326,7 +326,7 @@ func (lx *Lexer) ReadToken() (Token, error) {
 		if nxt, _ := lx.PeekRune(); unicode.IsDigit(nxt) {
 			lx.Token, err = lx.ReadNumber(r)
 		} else {
-			lx.Token = Token{Kind: Ident, Text: string(r)}
+			lx.Token = Token{Kind: Ident, Text: string(r), Value: string(r)}
 		}
 	case r == ';':
 		lx.Token, err = lx.ReadComment()

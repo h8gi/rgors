@@ -22,8 +22,8 @@ func display(p *Parser, line string) {
 func Repl() {
 	var line string
 	var err error
-	var contFlag bool
-	fmt.Println("LispTy Version 0.0.0.0.1")
+	var contFlag bool // for multiple lines
+	fmt.Println("Lispy Version 0.0.0.0.1")
 	fmt.Println("Press Ctrl+c to Exit")
 	rl, err := readline.New("lispy> ")
 	if err != nil {
@@ -33,6 +33,8 @@ func Repl() {
 	p := Parser{}
 
 	for {
+
+		// readline
 		tmpline, err := rl.Readline()
 		if contFlag {
 			line = line + "\n" + tmpline
@@ -44,12 +46,15 @@ func Repl() {
 		if err != nil {
 			break
 		}
+
+		// lexer check
 		display(&p, line)
+		// parse
 		program, err := p.ParseString(line)
 
 		if err != nil {
 			switch err.(type) {
-			case *UnclosedError:
+			case *UnclosedError: // continue
 				contFlag = true
 				rl.SetPrompt("... ")
 				continue
@@ -58,7 +63,7 @@ func Repl() {
 				continue
 			}
 		}
-
+		// eval???
 		for _, expr := range program {
 			fmt.Println(expr)
 			fmt.Println(expr.Assq(NewSymbol("foo")))

@@ -5,22 +5,22 @@ import (
 )
 
 // Lisp object is used as AST, Lisp code, and secd machine code
-// Type of Lisp Object
+// type of Lisp Object
 const (
-	LispTBoolean = -(iota + 1)
-	LispTSymbol
-	LispTChar
-	LispTVector
-	LispTBuiltin // built in, Value is go function
-	LispTClosure // compound car is code, cdr is env
-	LispTPair
-	LispTNumber
-	LispTString
-	LispTPort
-	LispTNull
+	DTBoolean = -(iota + 1)
+	DTSymbol
+	DTChar
+	DTVector
+	DTPrimitive // built in, Value is go function
+	DTClosure   // compound car is code, cdr is env
+	DTPair
+	DTNumber
+	DTString
+	DTPort
+	DTNull
 )
 
-// car & cdr is only used when Type is LispTPair
+// car & cdr is only used when Type is DTPair
 type LObj struct {
 	Type  int
 	Value interface{}
@@ -29,18 +29,18 @@ type LObj struct {
 }
 
 // utilities
-var LispFalse = LObj{Type: LispTBoolean, Value: false}
-var LispTrue = LObj{Type: LispTBoolean, Value: true}
-var LispNull = LObj{Type: LispTNull}
+var LispFalse = LObj{Type: DTBoolean, Value: false}
+var LispTrue = LObj{Type: DTBoolean, Value: true}
+var LispNull = LObj{Type: DTNull}
 
 // pair to string (recursive)
 func (obj LObj) pairString() string {
 	var text string
 	text = fmt.Sprintf("%v", *obj.Car)
 	switch obj.Cdr.Type {
-	case LispTNull:
+	case DTNull:
 		text += ")"
-	case LispTPair:
+	case DTPair:
 		text += " " + obj.Cdr.pairString()
 	default:
 		text += " . " + obj.Cdr.String() + ")"
@@ -50,19 +50,19 @@ func (obj LObj) pairString() string {
 
 func (obj LObj) String() (text string) {
 	switch obj.Type {
-	case LispTBoolean:
+	case DTBoolean:
 		if obj.Value == true {
 			text = "#t"
 		} else {
 			text = "#f"
 		}
-	case LispTPair:
+	case DTPair:
 		text = fmt.Sprintf("(%v", obj.pairString())
-	case LispTString:
+	case DTString:
 		text = fmt.Sprintf("\"%v\"", obj.Value)
-	case LispTNull:
+	case DTNull:
 		text = "()"
-	case LispTChar:
+	case DTChar:
 		text = string(obj.Value.(rune))
 	default:
 		text = fmt.Sprintf("%v", obj.Value)
@@ -71,42 +71,42 @@ func (obj LObj) String() (text string) {
 }
 
 // convert lisp object to go bool
-func (obj LObj) ToBool() bool {
-	return !(obj.Type == LispTBoolean && !obj.Value.(bool))
+func (obj *LObj) ToBool() bool {
+	return !(obj.Type == DTBoolean && !obj.Value.(bool))
 }
 
 // predicates
-func (obj LObj) IsBoolean() bool {
-	return obj.Type == LispTBoolean
+func (obj *LObj) IsBoolean() bool {
+	return obj.Type == DTBoolean
 }
 
-func (obj LObj) IsPair() bool {
-	return obj.Type == LispTPair
+func (obj *LObj) IsPair() bool {
+	return obj.Type == DTPair
 }
 
-func (obj LObj) IsSymbol() bool {
-	return obj.Type == LispTSymbol
+func (obj *LObj) IsSymbol() bool {
+	return obj.Type == DTSymbol
 }
 
-func (obj LObj) IsLispNull() bool {
-	return obj.Type == LispTNull
+func (obj *LObj) IsNull() bool {
+	return obj.Type == DTNull
 }
 
-func (obj LObj) IsNumber() bool {
-	return obj.Type == LispTNumber
+func (obj *LObj) IsNumber() bool {
+	return obj.Type == DTNumber
 }
 
-func (obj LObj) IsList() bool {
+func (obj *LObj) IsList() bool {
 	if obj.IsPair() {
 		return obj.Cdr.IsList()
 	}
-	return obj.IsLispNull()
+	return obj.IsNull()
 }
 
 // List utilities
 
 // car with type check
-func (obj LObj) SafeCar() (LObj, error) {
+func (obj *LObj) SafeCar() (LObj, error) {
 	if obj.IsPair() {
 		return *obj.Car, nil
 	} else {
@@ -115,7 +115,7 @@ func (obj LObj) SafeCar() (LObj, error) {
 }
 
 // cdr with type check
-func (obj LObj) SafeCdr() (LObj, error) {
+func (obj *LObj) SafeCdr() (LObj, error) {
 	if obj.IsPair() {
 		return *obj.Cdr, nil
 	} else {
@@ -123,7 +123,7 @@ func (obj LObj) SafeCdr() (LObj, error) {
 	}
 }
 
-func (obj LObj) SetCar(car LObj) error {
+func (obj *LObj) SetCar(car LObj) error {
 	if obj.IsPair() {
 		*obj.Car = car
 		return nil
@@ -132,7 +132,7 @@ func (obj LObj) SetCar(car LObj) error {
 	}
 }
 
-func (obj LObj) SetCdr(cdr LObj) error {
+func (obj *LObj) SetCdr(cdr LObj) error {
 	if obj.IsPair() {
 		*obj.Cdr = cdr
 		return nil
@@ -142,17 +142,17 @@ func (obj LObj) SetCdr(cdr LObj) error {
 }
 
 func Cons(car, cdr LObj) LObj {
-	return LObj{Type: LispTPair, Car: &car, Cdr: &cdr}
+	return LObj{Type: DTPair, Car: &car, Cdr: &cdr}
 }
 
-func (obj LObj) ListRef(n int) (LObj, error) {
+func (obj *LObj) ListRef(n int) (LObj, error) {
 	var err error
 	// range check
 	if n < 0 {
 		return LispFalse, fmt.Errorf("list-ref: out of range, %d", n)
 	}
 	// null check
-	if obj.IsLispNull() {
+	if obj.IsNull() {
 		return LispFalse, fmt.Errorf("list-ref: null value")
 	}
 	// cdr down loop
@@ -160,10 +160,10 @@ func (obj LObj) ListRef(n int) (LObj, error) {
 		if n == 0 {
 			return obj.SafeCar()
 		}
-		n -= 1                   // decrement
-		obj, err = obj.SafeCdr() // cdr down
+		n -= 1                    // decrement
+		*obj, err = obj.SafeCdr() // cdr down
 		if err != nil {
-			return obj, err
+			return *obj, err
 		}
 	}
 }
@@ -184,28 +184,28 @@ func (obj *LObj) Push(car LObj) {
 }
 
 // compare obj's representation with s
-func (sym LObj) TextEq(s string) bool {
+func (sym *LObj) TextEq(s string) bool {
 	return sym.String() == s
 }
 
-func (sym1 LObj) SymEq(sym2 LObj) bool {
+func (sym1 *LObj) SymEq(sym2 LObj) bool {
 	return sym1.IsSymbol() && sym2.IsSymbol() && (sym1.String() == sym2.String())
 }
 
 // compare by pointer
-func (obj1 LObj) Eq(obj2 LObj) bool {
-	return obj1 == obj2
+func (obj1 *LObj) Eq(obj2 LObj) bool {
+	return *obj1 == obj2
 }
 
 // reuturn: pair or #f
-func (alist LObj) Assq(sym LObj) (LObj, error) {
-	if alist.IsLispNull() {
+func (alist *LObj) Assq(sym LObj) (LObj, error) {
+	if alist.IsNull() {
 		return LispFalse, nil
 	}
 
 	pair, err := alist.SafeCar()
 	if err != nil {
-		return alist, err
+		return *alist, err
 	}
 	compsym, err := pair.SafeCar()
 	if err != nil {
@@ -224,8 +224,8 @@ func NewSymbol(s string) LObj {
 	if ok {
 		return sym
 	}
-	symbolTable[s] = LObj{Type: LispTSymbol, Value: s} // intern
-	return symbolTable[s]                              // return symbol
+	symbolTable[s] = LObj{Type: DTSymbol, Value: s} // intern
+	return symbolTable[s]                           // return symbol
 }
 
 func NewList(objs ...LObj) LObj {
@@ -234,4 +234,22 @@ func NewList(objs ...LObj) LObj {
 		pair = Cons(objs[i], pair)
 	}
 	return pair
+}
+
+func (obj *LObj) Length() (int, error) {
+	if !obj.IsList() {
+		return 0, fmt.Errorf("not a list: %v", obj)
+	}
+	count := 0
+	for {
+		if obj.IsNull() {
+			return count, nil
+		}
+		count += 1
+		obj = obj.Cdr
+	}
+}
+
+func NewVector(objs ...LObj) LObj {
+	return LObj{Type: DTVector, Value: objs}
 }

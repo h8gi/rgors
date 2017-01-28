@@ -11,7 +11,7 @@ func NewEnv() *LObj {
 
 // about environment (list of alist)
 func (env *LObj) LookUp(sym LObj) (LObj, error) {
-	if env.IsLispNull() {
+	if env.IsNull() {
 		return LispFalse, fmt.Errorf("unbound variable: %v", sym)
 	}
 	currentEnv, err := env.SafeCar()
@@ -44,7 +44,7 @@ func (parent *LObj) Extend(child *LObj) *LObj {
 
 func InitialEnv() *LObj {
 	var lispAdd2 = LObj{
-		Type: LispTBuiltin,
+		Type: DTPrimitive,
 		Value: func(obj1, obj2 LObj) (LObj, error) {
 			if obj1.IsNumber() && obj2.IsNumber() {
 				return LObj{Type: Number, Value: obj1.Value.(float64) + obj2.Value.(float64)}, nil
@@ -62,7 +62,7 @@ func InitialEnv() *LObj {
 // closure
 func NewClosure(code LObj, env LObj) LObj {
 	return LObj{
-		Type: LispTClosure,
+		Type: DTClosure,
 		Car:  &code,
 		Cdr:  &env,
 	}
@@ -75,7 +75,7 @@ func (closure *LObj) Env() *LObj {
 	return closure.Cdr
 }
 
-// var lispPlus = LObj{Type: LispTBuiltin, Value: LispTAdd2}
+// var lispPlus = LObj{Type: DTPrimitive, Value: DTAdd2}
 // var initFrame = LispNull
 
 // initFrame.Push(Cons(NewSymbol("+"), lispPlus))

@@ -246,7 +246,7 @@ func NewList(objs ...LObj) LObj {
 	return pair
 }
 
-func (obj *LObj) Length() (int, error) {
+func (obj LObj) Length() (int, error) {
 	if !obj.IsList() {
 		return 0, fmt.Errorf("not a list: %v", obj)
 	}
@@ -256,7 +256,7 @@ func (obj *LObj) Length() (int, error) {
 			return count, nil
 		}
 		count += 1
-		obj = obj.Cdr
+		obj = *obj.Cdr
 	}
 }
 

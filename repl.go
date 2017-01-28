@@ -1,4 +1,4 @@
-package lispy
+package rgors
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func Repl() {
 	var contFlag bool // for multiple lines
 	fmt.Println("Lispy Version 0.0.0.0.1")
 	fmt.Println("Press Ctrl+c to Exit")
-	rl, err := readline.New("lispy> ")
+	rl, err := readline.New("rgors> ")
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +39,7 @@ func Repl() {
 		if contFlag {
 			line = line + "\n" + tmpline
 			contFlag = false
-			rl.SetPrompt("lispy> ")
+			rl.SetPrompt("rgors> ")
 		} else {
 			line = tmpline
 		}
@@ -51,7 +51,7 @@ func Repl() {
 		display(&p, line)
 		// parse
 		program, err := p.ParseString(line)
-
+		
 		if err != nil {
 			switch err.(type) {
 			case *UnclosedError: // continue

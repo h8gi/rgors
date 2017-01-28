@@ -1,4 +1,4 @@
-package lispy
+package rgors
 
 import (
 	"bufio"

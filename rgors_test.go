@@ -32,3 +32,38 @@ func TestEval(t *testing.T) {
 	}
 
 }
+
+func TestLength(t *testing.T) {
+	parser := Parser{}
+
+	var testLists map[string]int = map[string]int{
+		"(1 2 3)":   3,
+		"()":        0,
+		"(3 4 5 7)": 4,
+	}
+
+	for str, expect := range testLists {
+		list, err := parser.str2expr(str)
+		fmt.Println("len ", expect, list)
+		if err != nil {
+			t.Errorf("parser fail: %s", err)
+		}
+		len, err := list.Length()
+		if err != nil {
+			t.Errorf("length fail: %s", err)
+		}
+		if len != expect {
+			t.Errorf("expect %d, but %d", expect, len)
+		}
+
+		len, err = list.Length()
+		if err != nil {
+			t.Errorf("length fail: %s", err)
+		}
+		if len != expect {
+			t.Errorf("expect %d, but %d", expect, len)
+		}
+		fmt.Println("len ", expect, list)
+	}
+
+}

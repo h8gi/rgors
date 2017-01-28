@@ -103,6 +103,15 @@ func (obj *LObj) IsList() bool {
 	return obj.IsNull()
 }
 
+func (obj *LObj) IsSelfEvaluating() bool {
+	switch obj.Type {
+	case DTBoolean, DTChar, DTString, DTNumber, DTVector:
+		return true
+	default:
+		return false
+	}
+}
+
 // List utilities
 
 // car with type check
@@ -156,14 +165,15 @@ func (obj *LObj) ListRef(n int) (LObj, error) {
 		return LispFalse, fmt.Errorf("list-ref: null value")
 	}
 	// cdr down loop
+	var elem LObj = *obj
 	for {
 		if n == 0 {
-			return obj.SafeCar()
+			return elem.SafeCar()
 		}
-		n -= 1                    // decrement
-		*obj, err = obj.SafeCdr() // cdr down
+		n -= 1                     // decrement
+		elem, err = elem.SafeCdr() // cdr down
 		if err != nil {
-			return *obj, err
+			return elem, err
 		}
 	}
 }
@@ -292,23 +302,6 @@ func (env *LObj) Define(sym LObj, val LObj) {
 func (parent *LObj) Extend(child *LObj) *LObj {
 	result := Cons(*child, *parent)
 	return &result
-}
-
-func InitialEnv() *LObj {
-	var lispAdd2 = LObj{
-		Type: DTPrimitive,
-		Value: func(obj1, obj2 LObj) (LObj, error) {
-			if obj1.IsNumber() && obj2.IsNumber() {
-				return LObj{Type: Number, Value: obj1.Value.(float64) + obj2.Value.(float64)}, nil
-			} else {
-				return LispFalse, fmt.Errorf("not number's %v + %v", obj1, obj2)
-			}
-		},
-	}
-	sym := NewSymbol("+")
-	env := NewEnv()
-	env.Define(sym, lispAdd2)
-	return env
 }
 
 // closure

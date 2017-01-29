@@ -17,6 +17,40 @@ func TestParser(t *testing.T) {
 	}
 }
 
+func TestEq(t *testing.T) {
+	parser := Parser{}
+	a1, _ := parser.str2expr("a")
+	a2, _ := parser.str2expr("a")
+	if !a1.Eq(&a2) {
+		t.Errorf("fail: symbol compare: %v == %v", a1, a2)
+	}
+	list1, _ := parser.str2expr("(1 2 3)")
+	list2, _ := parser.str2expr("(1 2 3)")
+	list3 := list1
+	if list1.Eq(&list2) {
+		t.Errorf("fail: list compare: %v != %v", list1, list2)
+	}
+	if !list1.Eq(&list3) {
+		t.Errorf("fail: list compare: %v == %v", list1, list3)
+	}
+
+	s1, _ := parser.str2expr("\"hello\"")
+	s2, _ := parser.str2expr("\"hello\"")
+	if !s1.Eq(&s2) {
+		t.Error("fail: str compare: %v != %v", s1, s2)
+	}
+
+	a := NewSymbol("a")
+	b := NewSymbol("b")
+
+	cns1 := Cons(*a, *b)
+	cns2 := Cons(*a, *b)
+	if cns1.Eq(&cns2) {
+		t.Error("fail: cons compare: %v != %v", cns1, cns2)
+	}
+
+}
+
 func TestEval(t *testing.T) {
 	parser := Parser{}
 	program, err := parser.ParseString("(+ 2 3) (- 10 2) (+ 2 (+ 2 5))")

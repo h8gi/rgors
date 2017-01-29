@@ -194,8 +194,8 @@ func (obj *LObj) Push(car *LObj) {
 }
 
 // compare by pointer
-func (obj1 *LObj) Eq(obj2 LObj) bool {
-	return *obj1 == obj2
+func (obj1 *LObj) Eq(obj2 *LObj) bool {
+	return *obj1 == *obj2
 }
 
 // reuturn: pair or #f
@@ -213,7 +213,7 @@ func (alist *LObj) Assq(sym LObj) (LObj, error) {
 		if err != nil {
 			return pair, err
 		}
-		if sym.Eq(compsym) {
+		if sym.Eq(&compsym) {
 			return pair, nil
 		}
 		copiedobj = *copiedobj.Cdr
@@ -266,7 +266,7 @@ func NewEnv() *LObj {
 }
 
 // about environment (list of alist)
-func (env *LObj) LookUp(sym LObj) (LObj, error) {
+func (env *LObj) LookUp(sym *LObj) (LObj, error) {
 	if env.IsNull() {
 		return LispFalse, fmt.Errorf("unbound variable: %v", sym)
 	}
@@ -275,7 +275,7 @@ func (env *LObj) LookUp(sym LObj) (LObj, error) {
 		return *env, err
 	}
 	// lookup current environment
-	pair, err := currentEnv.Assq(sym)
+	pair, err := currentEnv.Assq(*sym)
 	if err != nil {
 		return currentEnv, err
 	}

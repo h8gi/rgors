@@ -81,7 +81,7 @@ func (p *Parser) SimpleDatum() (LObj, error) {
 	case String:
 		obj = LObj{Type: DTString, Value: p.Token.Value}
 	default:
-		obj = NewSymbol(p.Token.Value.(string))
+		obj = *NewSymbol(p.Token.Value.(string))
 	}
 	p.ReadToken()
 	return obj, nil
@@ -110,7 +110,6 @@ func (p *Parser) Pair() (LObj, error) {
 	var car, cdr LObj
 	var pair = LObj{Type: DTPair}
 	var err error
-
 	// read car
 	switch p.Token.Kind {
 	case Dot:
@@ -162,7 +161,7 @@ func (p *Parser) Abbrev() (LObj, error) {
 	car := NewSymbol(p.Token.Value.(string))
 	p.match(p.Token.Kind) // Consume abbrev car
 	cdr, err := p.Datum()
-	pair.Car = &car
+	pair.Car = car
 	pair.Cdr = &LObj{Type: DTPair, Car: &cdr, Cdr: &LispNull}
 	return pair, err
 }

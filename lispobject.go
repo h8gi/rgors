@@ -189,17 +189,8 @@ func (pair *LObj) Pop() (LObj, error) {
 }
 
 // obj -> (a obj)
-func (obj *LObj) Push(car LObj) {
-	*obj = Cons(car, *obj)
-}
-
-// compare obj's representation with s
-func (sym *LObj) TextEq(s string) bool {
-	return sym.String() == s
-}
-
-func (sym1 *LObj) SymEq(sym2 LObj) bool {
-	return sym1.IsSymbol() && sym2.IsSymbol() && (sym1.String() == sym2.String())
+func (obj *LObj) Push(car *LObj) {
+	*obj = Cons(*car, *obj)
 }
 
 // compare by pointer
@@ -209,54 +200,57 @@ func (obj1 *LObj) Eq(obj2 LObj) bool {
 
 // reuturn: pair or #f
 func (alist *LObj) Assq(sym LObj) (LObj, error) {
-	if alist.IsNull() {
-		return LispFalse, nil
+	copiedobj := *alist
+	for {
+		if copiedobj.IsNull() {
+			return LispFalse, nil
+		}
+		pair, err := copiedobj.SafeCar()
+		if err != nil {
+			return copiedobj, err
+		}
+		compsym, err := pair.SafeCar()
+		if err != nil {
+			return pair, err
+		}
+		if sym.Eq(compsym) {
+			return pair, nil
+		}
+		copiedobj = *copiedobj.Cdr
 	}
-
-	pair, err := alist.SafeCar()
-	if err != nil {
-		return *alist, err
-	}
-	compsym, err := pair.SafeCar()
-	if err != nil {
-		return pair, err
-	}
-	if sym.Eq(compsym) {
-		return pair, nil
-	}
-	return alist.Cdr.Assq(sym)
 }
 
-var symbolTable map[string]LObj = make(map[string]LObj, 0)
+var symbolTable map[string]*LObj = make(map[string]*LObj, 0)
 
-func NewSymbol(s string) LObj {
+func NewSymbol(s string) *LObj {
 	sym, ok := symbolTable[s] // search intern table
 	if ok {
 		return sym
 	}
-	symbolTable[s] = LObj{Type: DTSymbol, Value: s} // intern
-	return symbolTable[s]                           // return symbol
+	symbolTable[s] = &LObj{Type: DTSymbol, Value: s} // intern
+	return symbolTable[s]                            // return symbol
 }
 
-func NewList(objs ...LObj) LObj {
+func NewList(objs ...*LObj) LObj {
 	pair := LispNull
 	for i := len(objs) - 1; i >= 0; i-- {
-		pair = Cons(objs[i], pair)
+		pair = Cons(*objs[i], pair)
 	}
 	return pair
 }
 
-func (obj LObj) Length() (int, error) {
+func (obj *LObj) Length() (int, error) {
 	if !obj.IsList() {
 		return 0, fmt.Errorf("not a list: %v", obj)
 	}
 	count := 0
+	copiedobj := *obj
 	for {
-		if obj.IsNull() {
+		if copiedobj.IsNull() {
 			return count, nil
 		}
 		count += 1
-		obj = *obj.Cdr
+		copiedobj = *copiedobj.Cdr
 	}
 }
 
@@ -294,8 +288,9 @@ func (env *LObj) LookUp(sym LObj) (LObj, error) {
 }
 
 // destructive
-func (env *LObj) Define(sym LObj, val LObj) {
-	env.Car.Push(Cons(sym, val))
+func (env *LObj) Define(sym *LObj, val *LObj) {
+	pair := Cons(*sym, *val)
+	env.Car.Push(&pair)
 }
 
 // return new extended env

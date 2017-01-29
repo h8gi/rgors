@@ -51,7 +51,6 @@ func Repl() {
 		display(&p, line)
 		// parse
 		program, err := p.ParseString(line)
-
 		if err != nil {
 			switch err.(type) {
 			case *UnclosedError: // continue
@@ -65,10 +64,9 @@ func Repl() {
 		}
 		// eval???
 		for _, expr := range program {
-			fmt.Println(expr)
 			ret, err := expr.SimpleEval()
 			if err != nil {
-				fmt.Errorf("eval fail: %s", err)
+				fmt.Printf("eval fail: %s\n", err)
 				continue
 			}
 			fmt.Printf("%v => %v\n", expr, ret)

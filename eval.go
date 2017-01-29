@@ -17,7 +17,7 @@ func InitialEnv() *LObj {
 		},
 	}
 	sym := NewSymbol("+")
-	env.Define(sym, lispAdd2)
+	env.Define(sym, &lispAdd2)
 
 	var lispSub2 = LObj{
 		Type: DTPrimitive,
@@ -30,7 +30,7 @@ func InitialEnv() *LObj {
 		},
 	}
 	sym = NewSymbol("-")
-	env.Define(sym, lispSub2)
+	env.Define(sym, &lispSub2)
 
 	return env
 }

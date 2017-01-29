@@ -64,6 +64,8 @@ func (obj LObj) String() (text string) {
 		text = "()"
 	case DTChar:
 		text = string(obj.Value.(rune))
+	case DTPrimitive:
+		text = "<primitive>"
 	default:
 		text = fmt.Sprintf("%v", obj.Value)
 	}

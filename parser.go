@@ -26,10 +26,12 @@ func (p *Parser) Start() error {
 	return err
 }
 
+type Program []LObj
+
 // Program is list of AST
 // Top level
-func (p *Parser) Program() ([]LObj, error) {
-	program := make([]LObj, 0)
+func (p *Parser) Program() (Program, error) {
+	program := make(Program, 0)
 	for {
 		if p.Token.Kind == EOF {
 			return program, nil

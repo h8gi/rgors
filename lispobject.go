@@ -182,11 +182,11 @@ func (obj *LObj) ListRef(n int) (LObj, error) {
 
 // destructive cdr and return car
 func (pair *LObj) Pop() (LObj, error) {
-	ret, err := pair.SafeCdr()
+	ret, err := pair.SafeCar()
 	if err != nil {
 		return ret, err
 	}
-	*pair = ret
+	*pair, err = pair.SafeCdr()
 	return ret, err
 }
 
@@ -258,61 +258,4 @@ func (obj *LObj) Length() (int, error) {
 
 func NewVector(objs ...LObj) LObj {
 	return LObj{Type: DTVector, Value: objs}
-}
-
-// env, closure
-
-func NewEnv() *LObj {
-	env := Cons(LispNull, LispNull)
-	return &env
-}
-
-// about environment (list of alist)
-func (env *LObj) LookUp(sym *LObj) (LObj, error) {
-	if env.IsNull() {
-		return LispFalse, fmt.Errorf("unbound variable: %v", sym)
-	}
-	currentEnv, err := env.SafeCar()
-	if err != nil {
-		return *env, err
-	}
-	// lookup current environment
-	pair, err := currentEnv.Assq(*sym)
-	if err != nil {
-		return currentEnv, err
-	}
-	// found!
-	if pair.ToBool() {
-		return *pair.Cdr, nil
-	}
-	// not found
-	return env.Cdr.LookUp(sym)
-}
-
-// destructive
-func (env *LObj) Define(sym *LObj, val *LObj) {
-	pair := Cons(*sym, *val)
-	env.Car.Push(&pair)
-}
-
-// return new extended env
-func (parent *LObj) Extend(child *LObj) *LObj {
-	result := Cons(*child, *parent)
-	return &result
-}
-
-// closure
-func NewClosure(code LObj, env LObj) LObj {
-	return LObj{
-		Type: DTClosure,
-		Car:  &code,
-		Cdr:  &env,
-	}
-}
-
-func (closure *LObj) Code() *LObj {
-	return closure.Car
-}
-func (closure *LObj) Env() *LObj {
-	return closure.Cdr
 }

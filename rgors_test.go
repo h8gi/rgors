@@ -48,7 +48,19 @@ func TestEq(t *testing.T) {
 	if cns1.Eq(&cns2) {
 		t.Error("fail: cons compare: %v != %v", cns1, cns2)
 	}
+}
 
+func TestPop(t *testing.T) {
+	parser := Parser{}
+	list, _ := parser.str2expr("(a b c)")
+	sym, _ := list.Pop()
+	if !sym.Eq(NewSymbol("a")) {
+		t.Error("fail: pop")
+	}
+	sym, _ = list.Pop()
+	if !sym.Eq(NewSymbol("b")) {
+		t.Error("fail: pop")
+	}
 }
 
 func TestEval(t *testing.T) {

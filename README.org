@@ -1,8 +1,76 @@
 * scheme on golang
 
+** heap based
+
+*** registers
+
+- a :: the accumulator,
+- x :: the next expression,
+- e :: the current environment,
+- r :: the current value rib, and
+- s :: the current stack.
+
+**** a : accumulator
+	 定数や変数の値をのせる。
+	 関数への実引数を保存。
+	 ifのテスト。計算の最終結果。
+**** x : next expression
+	 次の命令。素のschemeではなく、コンパイル済みのものを使用する。
+**** e :  current environment
+	 関数適用(application)で一旦消える。どこかに保存する…
+	 (((var ...) . (val ...)) . parentenv)	 
+**** r : current value rib
+	 よくわからん。関数の引数列の保存?
+**** s : current stack
+	 call frame の保存。applicationスタートの前に追加される。return で削除(pop?)
+	 call/ccで保存される?
+
+*** Assembly code
+
+**** (=halt=)
+	 仮想マシンを停止。 accumulatorの値を計算全体の返り値とする。
+	 halts the virtual machine. The value in the accumulator is the result of
+	 the computation.
+**** (=refer= var x)
+	 現在の環境からvarを探索し accumulatorにpush。次のxへ。
+	 finds the value of the variable var in the current environment, and
+	 places this value into the accumulator and sets the next expression to x.
+**** (=constant= obj x)
+	 accumulatorにobjをpush。xへ
+	 places obj into the the accumulator and sets the next expression to x.
+**** (=close= vars body x )
+	 creates a closure from body, vars and the current environment,
+	 places the closure into the accumulator, and sets the next expression to x.
+**** (=test= then else)
+	 tests the accumulator and if the accumulator is nonnull (that is, the test returned true),
+	 sets the next expression to then. Otherwise test sets the next expression to else.
+**** (=assign= var x)
+	 changes the current environment binding for the variable var to
+	 the value in the accumulator and sets the next expression to x.
+**** (=conti= x)
+	 creates a continuation from the current stack, places this continuation
+	 in the accumulator, and sets the next expression to x.
+**** (=nuate= s var)
+	 restores s to be the current stack, sets the accumulator to the value
+	 of var in the current environment, and sets the next expression to (return) (see below).
+**** (=frame= x ret)
+	 creates a new frame from the current environment, the current rib,
+	 and ret as the next expression, adds this frame to the current stack, sets the current
+	 rib to the empty list, and sets the next expression to x.
+**** (=argument= x)
+	 adds the value in the accumulator to the current rib and sets the next expression to x.
+**** (=apply=)
+	 applies the closure in the accumulator to the list of values in the current rib. 
+	 Precisely, this instruction extends the closure’s environment with the closure's
+	 variable list and the current rib, sets the current environment to this new environment,
+	 sets the current rib to the empty list, and sets the next expression to the
+	 closure’s body.
+**** (=return=)
+	 removes the first frame from the stack and resets the current environment,
+	 the current rib, the next expression, and the current stack.
 
 ** links
+
+   [[http://agl.cs.unm.edu/~williams/cs491/three-imp.pdf][three imp]]
    
-  [[http://agl.cs.unm.edu/~williams/cs491/three-imp.pdf][three imp]]
-  
-  [[http://www.eidos.ic.i.u-tokyo.ac.jp/~tau/lecture/scheme_compiler/gen/resume/all.pdf][情報科学実験 II: Scheme言語処理系の作成]]
+   [[http://www.eidos.ic.i.u-tokyo.ac.jp/~tau/lecture/scheme_compiler/gen/resume/all.pdf][情報科学実験 II: Scheme言語処理系の作成]]

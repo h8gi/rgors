@@ -64,8 +64,9 @@ func Repl() {
 		}
 		// eval???
 		for _, expr := range program {
-			vm := NewVM(expr)
-			vm.Run()
+			vm := NewVM(expr.Compile())
+			ans := vm.Run()
+			fmt.Println(expr, "=>", ans)
 		}
 	}
 }

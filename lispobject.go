@@ -66,6 +66,8 @@ func (obj LObj) String() (text string) {
 		text = string(obj.Value.(rune))
 	case DTPrimitive:
 		text = "<primitive>"
+	case DTClosure:
+		text = fmt.Sprintf("(lambda %v %v)", obj.Vars(), obj.Body())
 	default:
 		text = fmt.Sprintf("%v", obj.Value)
 	}
@@ -119,7 +121,7 @@ func (obj *LObj) IsClosure() bool {
 }
 
 func (obj *LObj) IsPrimitive() bool {
-	return boj.Type == DTPrimitive
+	return obj.Type == DTPrimitive
 }
 
 func (obj *LObj) IsProcedure() bool {

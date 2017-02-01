@@ -26,7 +26,7 @@ func (vm VM) String() string {
 	return fmt.Sprintf("a: %v\nx: %v\ne: %v\nr: %v\ns: %v\n", vm.a, vm.x, vm.e, vm.r, vm.s)
 }
 
-func (vm *VM) Run() {
+func (vm *VM) Run() LObj {
 	// TODO: errorcheck
 Loop:
 	for {
@@ -75,8 +75,8 @@ Loop:
 			vals.SetCar(vm.a)
 		case "conti": // (conti x)
 			vm.x, _ = vm.x.ListRef(1)
-			vm.a = NewContinuation(&vm.s)
-		case "nuate": // (nuate s var)
+			vm.a = NewContinuation(vm.s)
+		case "naute": // (nuate s var)
 			vm.s, _ = vm.x.ListRef(1)
 			varsym, _ := vm.x.ListRef(2)
 			vals, _ := vm.e.LookUp(&varsym)
@@ -105,6 +105,7 @@ Loop:
 			vm.s, _ = vm.s.ListRef(3)
 		}
 	}
+	return vm.a
 }
 
 // VM support functions
@@ -167,10 +168,10 @@ func (closure *LObj) Env() LObj {
 }
 
 // continuation
-func NewContinuation(s *LObj) LObj {
+func NewContinuation(s LObj) LObj {
 	symv := NewSymbol("v")
 	vars := NewList(*symv)
-	body := NewList(*NewSymbol("naute"), *s, *symv)
+	body := NewList(*NewSymbol("naute"), s, *symv)
 	env := LispNull
 	return NewClosure(vars, body, env)
 }

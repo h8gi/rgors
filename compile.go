@@ -15,6 +15,17 @@ func (x *LObj) Compile(next LObj) LObj {
 			return NewList(*NewSymbol("close"), vars,
 				body.Compile(NewList(NewSymbol("return"))), next)
 		case "if":
+			test, _ := x.ListRef(1)
+			then, _ := x.ListRef(2)
+			els, _ := x.ListRef(3)
+			thenc := then.Compile(next)
+			elsec := els.Compile(next)
+			return test.Compile(NewList(NewSymbol("test"), thenc, elsec))
+		case "set!":
+			varsym, _ := x.ListRef(1)
+			x, _ := x.ListRef(2)
+			return x.Compile(NewList(NewSymbol("assign"), varsym, next))
+		case "call/cc":
 
 		}
 	}

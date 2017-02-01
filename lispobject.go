@@ -114,6 +114,18 @@ func (obj *LObj) IsSelfEvaluating() bool {
 	}
 }
 
+func (obj *LObj) IsClosure() bool {
+	return obj.Type == DTClosure
+}
+
+func (obj *LObj) IsPrimitive() bool {
+	return boj.Type == DTPrimitive
+}
+
+func (obj *LObj) IsProcedure() bool {
+	return obj.IsClosure() || obj.IsPrimitive()
+}
+
 // List utilities
 
 // car with type check
@@ -198,6 +210,11 @@ func (obj *LObj) Push(car *LObj) {
 // compare by pointer
 func (obj1 *LObj) Eq(obj2 *LObj) bool {
 	return *obj1 == *obj2
+}
+
+// utility
+func (obj *LObj) CarEq(s string) bool {
+	return obj.Car.Eq(NewSymbol(s))
 }
 
 // reuturn: pair or #f

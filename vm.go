@@ -22,10 +22,6 @@ func NewVM(obj LObj) *VM {
 	}
 }
 
-func (obj *LObj) CarEq(s string) bool {
-	return obj.Car.Eq(NewSymbol(s))
-}
-
 func (vm VM) String() string {
 	return fmt.Sprintf("a: %v\nx: %v\ne: %v\nr: %v\ns: %v\n", vm.a, vm.x, vm.e, vm.r, vm.s)
 }
@@ -96,9 +92,9 @@ Loop:
 			vm.r = Cons(vm.a, vm.r)
 		case "apply": // (apply)
 			// accumulator is closure or primitive
-			body, _ := vm.a.ListRef(0)
-			e, _ := vm.a.ListRef(1)
-			vars, _ := vm.a.ListRef(2)
+			body := vm.a.Body()
+			e := vm.a.Env()
+			vars := vm.a.Vars()
 			vm.x = body
 			vm.e = e.Extend(&vars, &vm.r)
 			vm.r = LispNull
@@ -152,16 +148,22 @@ func (pair *LObj) Val() *LObj {
 
 // closure
 func NewClosure(vars, body, env LObj) LObj {
-	return NewList(body, env, vars)
+	return LObj{
+		Type:  DTClosure,
+		Car:   &vars,
+		Cdr:   &body,
+		Value: env,
+	}
+	// return NewList(body, env, vars)
 }
-func (closure *LObj) Vars() *LObj {
-	return closure.Car
+func (closure *LObj) Vars() LObj {
+	return *closure.Car
 }
-func (closure *LObj) Body() *LObj {
-	return closure.Cdr
+func (closure *LObj) Body() LObj {
+	return *closure.Cdr
 }
-func (closure *LObj) Env() *LObj {
-	return closure.Value.(*LObj)
+func (closure *LObj) Env() LObj {
+	return closure.Value.(LObj)
 }
 
 // continuation

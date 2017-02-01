@@ -1,15 +1,10 @@
 package rgors
 
-import (
-	"fmt"
-)
-
 func (next *LObj) isTail() bool {
 	return next.Car.Eq(NewSymbol("return"))
 }
 
 func (x *LObj) comp(next LObj) LObj {
-	fmt.Println(x)
 	if x.IsSymbol() {
 		return NewList(*NewSymbol("refer"), *x, next)
 	}

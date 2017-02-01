@@ -48,7 +48,7 @@ func Repl() {
 		}
 
 		// lexer check
-		display(&p, line)
+		// display(&p, line)
 		// parse
 		program, err := p.ParseString(line)
 		if err != nil {
@@ -63,10 +63,11 @@ func Repl() {
 			}
 		}
 		// eval???
+		vm := NewVM()
 		for _, expr := range program {
-			vm := NewVM(expr.Compile())
+			vm.Load(expr.Compile())
 			ans := vm.Run()
-			fmt.Println(expr, "=>", ans)
+			fmt.Println("=>", ans)
 		}
 	}
 }

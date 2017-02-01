@@ -12,14 +12,18 @@ type VM struct {
 	s LObj // the current stack
 }
 
-func NewVM(obj LObj) *VM {
+func NewVM() *VM {
 	return &VM{
 		a: LispNull,
-		x: obj,
+		x: LispNull,
 		e: LispNull,
 		r: LispNull,
 		s: LispNull,
 	}
+}
+
+func (vm *VM) Load(obj LObj) {
+	vm.x = obj
 }
 
 func (vm VM) String() string {
@@ -30,7 +34,7 @@ func (vm *VM) Run() LObj {
 	// TODO: errorcheck
 Loop:
 	for {
-		fmt.Println(vm)
+		// fmt.Println(vm)
 		switch vm.x.Car.String() {
 		case "halt": // (halt)
 			// finish computation, return value
@@ -105,7 +109,9 @@ Loop:
 			vm.s, _ = vm.s.ListRef(3)
 		}
 	}
-	return vm.a
+	ret := vm.a
+	vm.a = LispNull
+	return ret
 }
 
 // VM support functions

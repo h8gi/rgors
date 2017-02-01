@@ -233,10 +233,10 @@ func NewSymbol(s string) *LObj {
 	return symbolTable[s]                            // return symbol
 }
 
-func NewList(objs ...*LObj) LObj {
+func NewList(objs ...LObj) LObj {
 	pair := LispNull
 	for i := len(objs) - 1; i >= 0; i-- {
-		pair = Cons(*objs[i], pair)
+		pair = Cons(objs[i], pair)
 	}
 	return pair
 }

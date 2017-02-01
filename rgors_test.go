@@ -63,22 +63,6 @@ func TestPop(t *testing.T) {
 	}
 }
 
-func TestEval(t *testing.T) {
-	parser := Parser{}
-	program, err := parser.ParseString("(+ 2 3) (- 10 2) (+ 2 (+ 2 5))")
-	if err != nil {
-		t.Errorf("parser fail: %s", err)
-	}
-	for _, exp := range program {
-		ret, err := exp.SimpleEval()
-		if err != nil {
-			t.Errorf("eval fail: %s", err)
-		}
-		fmt.Printf("%v => %v\n", exp, ret)
-	}
-
-}
-
 func TestLength(t *testing.T) {
 	parser := Parser{}
 
@@ -112,4 +96,40 @@ func TestLength(t *testing.T) {
 		fmt.Println("len ", expect, list)
 	}
 
+}
+
+func TestList(t *testing.T) {
+	parser := Parser{}
+	list1, _ := parser.str2expr("(a b c)")
+	list2 := NewList(*NewSymbol("a"), *NewSymbol("b"), *NewSymbol("c"))
+	if list1.String() != list2.String() {
+		t.Errorf("list constructor fail")
+	}
+	if list1.Eq(&list2) {
+		t.Errorf("Eq fail")
+	}
+}
+
+func TestLookup(t *testing.T) {
+	parser := Parser{}
+	vars, _ := parser.str2expr("(a b c)")
+	vals, _ := parser.str2expr("(1 2 3)")
+	env := LispNull.Extend(&vars, &vals)
+	fmt.Println(env)
+	fmt.Println(env.LookUp(NewSymbol("c")))
+	fmt.Println(env)
+	newvals, _ := env.LookUp(NewSymbol("c"))
+	newvals.SetCar(LispFalse)
+	fmt.Println(env)
+}
+
+func TestVM(t *testing.T) {
+	parser := Parser{}
+	program := "(frame (halt) (constant 3 (argument (close (x) (refer x (return)) (apply)))))"
+	expr, _ := parser.str2expr(program)
+	vm := NewVM(expr)
+	vm.Run()
+	if vm.a.Value.(int) != 3 {
+		fmt.Errorf("vm error")
+	}
 }

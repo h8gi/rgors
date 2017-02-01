@@ -64,12 +64,8 @@ func Repl() {
 		}
 		// eval???
 		for _, expr := range program {
-			ret, err := expr.SimpleEval()
-			if err != nil {
-				fmt.Printf("eval fail: %s\n", err)
-				continue
-			}
-			fmt.Printf("%v => %v\n", expr, ret)
+			vm := NewVM(expr)
+			vm.Run()
 		}
 	}
 }

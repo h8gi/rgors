@@ -66,7 +66,7 @@ func (vm VM) String() string {
 	return fmt.Sprintf("a: %v\nx: %v\ne: %v\nr: %v\ns: %v\n", vm.a, vm.x, vm.e, vm.r, vm.s)
 }
 
-func (vm *VM) Run() LObj {
+func (vm *VM) Run() (LObj, error) {
 	// TODO: errorcheck
 Loop:
 	for {
@@ -151,8 +151,9 @@ Loop:
 				vm.a = vm.a.PrimitiveApply(vm.r)
 				vm.r = LispNull
 				vm.x = NewList(*NewSymbol("return"))
+			} else {
+				return LispFalse, fmt.Errorf("not procedure: %v", vm.a)
 			}
-
 		case "return":
 			// resets from stack
 			vm.x, _ = vm.s.ListRef(0)
@@ -163,7 +164,7 @@ Loop:
 	}
 	ret := vm.a
 	vm.a = LispNull
-	return ret
+	return ret, nil
 }
 
 // VM support functions

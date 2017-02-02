@@ -67,11 +67,15 @@ func Repl() {
 		for _, expr := range program {
 			comp, err := expr.Compile()
 			if err != nil {
-				fmt.Println("compile error: ", err.Error())
+				fmt.Println("compile error:", err.Error())
 				continue
 			}
 			vm.Load(comp)
-			ans := vm.Run()
+			ans, err := vm.Run()
+			if err != nil {
+				fmt.Println("vm error:", err.Error())
+				continue
+			}
 			fmt.Println("=>", comp, "\n=>", ans)
 		}
 	}

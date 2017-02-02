@@ -1,15 +1,19 @@
 package rgors
 
+import (
+	"fmt"
+)
+
 func (next *LObj) isTail() bool {
 	return next.Car.Eq(NewSymbol("return"))
 }
 
 // compile to continuation passing style
 func (x *LObj) comp(next LObj) (LObj, error) {
-	if x.IsSymbol() {
+
+	if x.IsSymbol() { // symbol
 		return NewList(*NewSymbol("refer"), *x, next), nil
-	}
-	if x.IsPair() {
+	} else if x.IsPair() { // pair
 		switch x.Car.String() {
 		case "quote": // (quote obj)
 			obj, err := x.ListRef(1)
@@ -106,8 +110,12 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 				args = args.Cdr
 			}
 		}
+	} else if x.IsSelfEvaluating() {
+		return NewList(*NewSymbol("constant"), *x, next), nil
+	} else {
+		return LispFalse, fmt.Errorf("not atomic: %v", x)
 	}
-	return NewList(*NewSymbol("constant"), *x, next), nil
+
 }
 
 func (x *LObj) Compile() (LObj, error) {

@@ -81,7 +81,10 @@ Loop:
 			// set x to next-x
 			vm.x, _ = vm.x.ListRef(2)
 			// set accumulator to variable's value
-			vals, _ := vm.e.LookUp(&varsym)
+			vals, err := vm.e.LookUp(&varsym)
+			if err != nil {
+				return *vals, err
+			}
 			vm.a = *vals.Car
 		case "constant": // (constant obj next-x)
 			//  set! accumulator constant value
@@ -110,7 +113,10 @@ Loop:
 			varsym, _ := vm.x.ListRef(1)
 			// set x to next-x
 			vm.x, _ = vm.x.ListRef(2)
-			vals, _ := vm.e.LookUp(&varsym)
+			vals, err := vm.e.LookUp(&varsym)
+			if err != nil {
+				return *vals, err
+			}
 			// assing var to value
 			vals.SetCar(vm.a)
 		case "conti": // (conti x)
@@ -173,7 +179,7 @@ Loop:
 func (env *LObj) LookUp(sym *LObj) (*LObj, error) {
 	for {
 		// env exhausted
-		if env.IsNull() {
+		if env.Car.IsNull() {
 			return &LispFalse, fmt.Errorf("unbound variable: %v", sym)
 		}
 		vars := env.Car.Car

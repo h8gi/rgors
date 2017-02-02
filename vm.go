@@ -20,41 +20,41 @@ func NewVM() *VM {
 		r: LispNull,
 		s: LispNull,
 	}
-	vars := NewList(*NewSymbol("+"), *NewSymbol("-"))
-	vals := NewList(
-		LObj{
-			Type: DTPrimitive,
-			Value: func(args ...LObj) LObj {
-				ret := 0
-				for _, elem := range args {
-					ret += elem.Value.(int)
-				}
-				return LObj{
-					Type:  DTNumber,
-					Value: ret,
-				}
-			}},
-		LObj{
-			Type: DTPrimitive,
-			Value: func(args ...LObj) LObj {
-				var ret int = 0
-				if len(args) == 1 {
-					ret = -args[0].Value.(int)
-				} else {
-					ret = args[0].Value.(int)
-					args = args[1:len(args)]
-					for _, elem := range args {
-						ret -= elem.Value.(int)
-					}
-				}
-				return LObj{
-					Type:  DTNumber,
-					Value: ret,
-				}
-			},
-		},
-	)
-	vm.e = vm.e.Extend(vars, vals)
+	// vars := NewList(*NewSymbol("+"), *NewSymbol("-"))
+	// vals := NewList(
+	// 	LObj{
+	// 		Type: DTPrimitive,
+	// 		Value: func(args ...LObj) LObj {
+	// 			ret := 0
+	// 			for _, elem := range args {
+	// 				ret += elem.Value.(int)
+	// 			}
+	// 			return LObj{
+	// 				Type:  DTNumber,
+	// 				Value: ret,
+	// 			}
+	// 		}},
+	// 	LObj{
+	// 		Type: DTPrimitive,
+	// 		Value: func(args ...LObj) LObj {
+	// 			var ret int = 0
+	// 			if len(args) == 1 {
+	// 				ret = -args[0].Value.(int)
+	// 			} else {
+	// 				ret = args[0].Value.(int)
+	// 				args = args[1:len(args)]
+	// 				for _, elem := range args {
+	// 					ret -= elem.Value.(int)
+	// 				}
+	// 			}
+	// 			return LObj{
+	// 				Type:  DTNumber,
+	// 				Value: ret,
+	// 			}
+	// 		},
+	// 	},
+	// )
+	// vm.e = vm.e.Extend(vars, vals)
 	return vm
 }
 

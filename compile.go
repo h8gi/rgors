@@ -13,10 +13,11 @@ func (e *LObj) CompileExtend(r LObj) LObj {
 	return Cons(r, *e)
 }
 
-func (env *LObj) CompileLookUp(varsym *LObj) (rib int, elt int, err error) {
+func (env *LObj) CompileLookUp(varsym *LObj) (pair LObj, err error) {
+	var rib, elt int = 0, 0
 	for {
 		if env.IsNull() {
-			return rib, elt, fmt.Errorf("unbound variable: %v", varsym)
+			return LispFalse, fmt.Errorf("unbound variable: %v", varsym)
 		}
 		vars := env.Car
 		for {
@@ -28,7 +29,9 @@ func (env *LObj) CompileLookUp(varsym *LObj) (rib int, elt int, err error) {
 			}
 			// found!
 			if vars.Car.Eq(varsym) {
-				return rib, elt, nil
+				return Cons(
+					LObj{Type: DTNumber, Value: rib},
+					LObj{Type: DTNumber, Value: elt}), nil
 			}
 			// next
 			vars = vars.Cdr
@@ -40,9 +43,13 @@ func (env *LObj) CompileLookUp(varsym *LObj) (rib int, elt int, err error) {
 }
 
 // compile to continuation passing style
-func (x *LObj) comp(next LObj) (LObj, error) {
+func (x *LObj) comp(next, env LObj) (LObj, error) {
 	if x.IsSymbol() { // symbol
-		return NewList(*NewSymbol("refer"), *x, next), nil
+		pair, err := env.CompileLookUp(x)
+		if err != nil {
+			return pair, err
+		}
+		return NewList(*NewSymbol("refer"), pair, next), nil
 	} else if x.IsPair() { // pair
 		switch x.Car.String() {
 		case "quote": // (quote obj)
@@ -60,11 +67,11 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 			if err != nil {
 				return body, err
 			}
-			body, err = body.comp(NewList(*NewSymbol("return")))
+			body, err = body.comp(NewList(*NewSymbol("return")), env.CompileExtend(vars))
 			if err != nil {
 				return body, err
 			}
-			return NewList(*NewSymbol("close"), vars, body, next), nil
+			return NewList(*NewSymbol("close"), body, next), nil
 		case "if": // (if test then else)
 			test, err := x.ListRef(1)
 			if err != nil {
@@ -78,15 +85,15 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 			if err != nil {
 				return els, err
 			}
-			thenc, err := then.comp(next)
+			thenc, err := then.comp(next, env)
 			if err != nil {
 				return thenc, err
 			}
-			elsec, err := els.comp(next)
+			elsec, err := els.comp(next, env)
 			if err != nil {
 				return elsec, err
 			}
-			return test.comp(NewList(*NewSymbol("test"), thenc, elsec))
+			return test.comp(NewList(*NewSymbol("test"), thenc, elsec), env)
 		case "set!": // (set! var x)
 			varsym, err := x.ListRef(1)
 			if err != nil {
@@ -96,13 +103,17 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 			if err != nil {
 				return x, err
 			}
-			return x.comp(NewList(*NewSymbol("assign"), varsym, next))
+			access, err := env.CompileLookUp(&varsym)
+			if err != nil { // not found
+				return access, err
+			}
+			return x.comp(NewList(*NewSymbol("assign"), access, next), env)
 		case "call/cc": // (call/cc x)
 			x, err := x.ListRef(1) // x should be proc
 			if err != nil {
 				return x, err
 			}
-			c, err := x.comp(NewList(*NewSymbol("apply")))
+			c, err := x.comp(NewList(*NewSymbol("apply")), env)
 			if err != nil {
 				return c, err
 			}
@@ -119,7 +130,7 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 			// apply function
 			args := x.Cdr
 			// c's last inst is apply
-			c, err := x.Car.comp(NewList(*NewSymbol("apply")))
+			c, err := x.Car.comp(NewList(*NewSymbol("apply")), env)
 			if err != nil {
 				return c, err
 			}
@@ -133,7 +144,7 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 					}
 				}
 				// cons up c with argument
-				c, err = args.Car.comp(NewList(*NewSymbol("argument"), c))
+				c, err = args.Car.comp(NewList(*NewSymbol("argument"), c), env)
 				if err != nil {
 					return c, err
 				}
@@ -149,5 +160,5 @@ func (x *LObj) comp(next LObj) (LObj, error) {
 }
 
 func (x *LObj) Compile() (LObj, error) {
-	return x.comp(NewList(*NewSymbol("halt")))
+	return x.comp(NewList(*NewSymbol("halt")), LispNull)
 }

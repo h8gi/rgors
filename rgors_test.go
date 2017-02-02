@@ -122,28 +122,3 @@ func TestLookup(t *testing.T) {
 	newvals.SetCar(LispFalse)
 	fmt.Println(env)
 }
-
-func TestCompileLookUp(t *testing.T) {
-	env := LispNull.CompileExtend(NewList(*NewSymbol("a"), *NewSymbol("b"), *NewSymbol("c")))
-
-	rib, elt, _ := env.CompileLookUp(NewSymbol("c"))
-	if !(rib == 0 && elt == 2) {
-		t.Errorf("lookup fail")
-	}
-
-	env = env.CompileExtend(NewList(*NewSymbol("x"), *NewSymbol("y")))
-
-	rib, elt, _ = env.CompileLookUp(NewSymbol("x"))
-	if !(rib == 0 && elt == 0) {
-		t.Errorf("lookup fail")
-	}
-
-	rib, elt, _ = env.CompileLookUp(NewSymbol("c"))
-	if !(rib == 1 && elt == 2) {
-		t.Errorf("lookup fail")
-	}
-	rib, elt, _ = env.CompileLookUp(NewSymbol("a"))
-	if !(rib == 1 && elt == 0) {
-		t.Errorf("lookup fail")
-	}
-}

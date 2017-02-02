@@ -114,7 +114,7 @@ func TestLookup(t *testing.T) {
 	parser := Parser{}
 	vars, _ := parser.str2expr("(a b c)")
 	vals, _ := parser.str2expr("(1 2 3)")
-	env := LispNull.Extend(&vars, &vals)
+	env := LispNull.Extend(vars, vals)
 	fmt.Println(env)
 	fmt.Println(env.LookUp(NewSymbol("c")))
 	fmt.Println(env)
@@ -123,13 +123,27 @@ func TestLookup(t *testing.T) {
 	fmt.Println(env)
 }
 
-func TestVM(t *testing.T) {
-	parser := Parser{}
-	program := "(frame (halt) (constant 3 (argument (close (x) (refer x (return)) (apply)))))"
-	expr, _ := parser.str2expr(program)
-	vm := NewVM(expr)
-	vm.Run()
-	if vm.a.Value.(int) != 3 {
-		fmt.Errorf("vm error")
+func TestCompileLookUp(t *testing.T) {
+	env := LispNull.CompileExtend(NewList(*NewSymbol("a"), *NewSymbol("b"), *NewSymbol("c")))
+
+	rib, elt, _ := env.CompileLookUp(NewSymbol("c"))
+	if !(rib == 0 && elt == 2) {
+		t.Errorf("lookup fail")
+	}
+
+	env = env.CompileExtend(NewList(*NewSymbol("x"), *NewSymbol("y")))
+
+	rib, elt, _ = env.CompileLookUp(NewSymbol("x"))
+	if !(rib == 0 && elt == 0) {
+		t.Errorf("lookup fail")
+	}
+
+	rib, elt, _ = env.CompileLookUp(NewSymbol("c"))
+	if !(rib == 1 && elt == 2) {
+		t.Errorf("lookup fail")
+	}
+	rib, elt, _ = env.CompileLookUp(NewSymbol("a"))
+	if !(rib == 1 && elt == 0) {
+		t.Errorf("lookup fail")
 	}
 }

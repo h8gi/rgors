@@ -179,7 +179,7 @@ Loop:
 func (env *LObj) LookUp(sym *LObj) (*LObj, error) {
 	for {
 		// env exhausted
-		if env.Car.IsNull() {
+		if env.IsNull() {
 			return &LispFalse, fmt.Errorf("unbound variable: %v", sym)
 		}
 		vars := env.Car.Car
@@ -203,13 +203,6 @@ func (env *LObj) LookUp(sym *LObj) (*LObj, error) {
 
 func (env *LObj) Extend(vars, vals LObj) LObj {
 	return Cons(Cons(vars, vals), *env)
-}
-
-func (pair *LObj) Var() *LObj {
-	return pair.Car
-}
-func (pair *LObj) Val() *LObj {
-	return pair.Cdr
 }
 
 // closure

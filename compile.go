@@ -4,13 +4,43 @@ import (
 	"fmt"
 )
 
+// check tail call
 func (next *LObj) isTail() bool {
 	return next.Car.Eq(NewSymbol("return"))
 }
 
+func (e *LObj) CompileExtend(r LObj) LObj {
+	return Cons(r, *e)
+}
+
+func (env *LObj) CompileLookUp(varsym *LObj) (rib int, elt int, err error) {
+	for {
+		if env.IsNull() {
+			return rib, elt, fmt.Errorf("unbound variable: %v", varsym)
+		}
+		vars := env.Car
+		for {
+			// goto next rib
+			if vars.IsNull() {
+				rib += 1
+				elt = 0
+				break
+			}
+			// found!
+			if vars.Car.Eq(varsym) {
+				return rib, elt, nil
+			}
+			// next
+			vars = vars.Cdr
+			elt += 1
+		}
+		// not found in this rib
+		env = env.Cdr
+	}
+}
+
 // compile to continuation passing style
 func (x *LObj) comp(next LObj) (LObj, error) {
-
 	if x.IsSymbol() { // symbol
 		return NewList(*NewSymbol("refer"), *x, next), nil
 	} else if x.IsPair() { // pair

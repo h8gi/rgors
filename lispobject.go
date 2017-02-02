@@ -67,7 +67,7 @@ func (obj LObj) String() (text string) {
 	case DTPrimitive:
 		text = "<primitive>"
 	case DTClosure:
-		text = fmt.Sprintf("(lambda %v %v)", obj.Vars(), obj.Body())
+		text = fmt.Sprintf("(^ %v . %v : %v)", obj.Vars(), obj.Body(), obj.Env())
 	default:
 		text = fmt.Sprintf("%v", obj.Value)
 	}

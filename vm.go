@@ -13,13 +13,49 @@ type VM struct {
 }
 
 func NewVM() *VM {
-	return &VM{
+	vm := &VM{
 		a: LispNull,
 		x: LispNull,
 		e: LispNull,
 		r: LispNull,
 		s: LispNull,
 	}
+	vars := NewList(*NewSymbol("+"), *NewSymbol("-"))
+	vals := NewList(
+		LObj{
+			Type: DTPrimitive,
+			Value: func(args ...LObj) LObj {
+				ret := 0
+				for _, elem := range args {
+					ret += elem.Value.(int)
+				}
+				return LObj{
+					Type:  DTNumber,
+					Value: ret,
+				}
+			}},
+		LObj{
+			Type: DTPrimitive,
+			Value: func(args ...LObj) LObj {
+				var ret int = 0
+				if len(args) == 1 {
+					ret = -args[0].Value.(int)
+				} else {
+					ret = args[0].Value.(int)
+					args = args[1:len(args)]
+					for _, elem := range args {
+						ret -= elem.Value.(int)
+					}
+				}
+				return LObj{
+					Type:  DTNumber,
+					Value: ret,
+				}
+			},
+		},
+	)
+	vm.e = vm.e.Extend(vars, vals)
+	return vm
 }
 
 func (vm *VM) Load(obj LObj) {
@@ -34,7 +70,7 @@ func (vm *VM) Run() LObj {
 	// TODO: errorcheck
 Loop:
 	for {
-		// fmt.Println(vm)
+		fmt.Println(vm)
 		switch vm.x.Car.String() {
 		case "halt": // (halt)
 			// finish computation, return value
@@ -59,7 +95,7 @@ Loop:
 			body, _ := vm.x.ListRef(2)
 			// set x to next-x
 			vm.x, _ = vm.x.ListRef(3)
-			// put closure to accumulator
+			// set accumulator to closure
 			vm.a = NewClosure(vars, body, vm.e)
 		case "test": // (test then else)
 			thenobj, _ := vm.x.ListRef(1)
@@ -78,16 +114,22 @@ Loop:
 			// assing var to value
 			vals.SetCar(vm.a)
 		case "conti": // (conti x)
+			// later, x takes one argument from accumulater
 			vm.x, _ = vm.x.ListRef(1)
+			// make continuation from stack
 			vm.a = NewContinuation(vm.s)
-		case "naute": // (nuate s var)
+		case "naute": // (naute s var)
+			// restore s
 			vm.s, _ = vm.x.ListRef(1)
+			// set accumulator to var's value
 			varsym, _ := vm.x.ListRef(2)
 			vals, _ := vm.e.LookUp(&varsym)
 			vm.a = *vals.Car
+			// next is (return)
 			vm.x = NewList(*NewSymbol("return"))
-		case "frame": // (frame ret x)
+		case "frame": // (frame ret next-x)
 			ret, _ := vm.x.ListRef(1)
+			// set x to next-x
 			vm.x, _ = vm.x.ListRef(2)
 			vm.s = NewCallFrame(ret, vm.e, vm.r, vm.s)
 			vm.r = LispNull
@@ -96,13 +138,23 @@ Loop:
 			vm.r = Cons(vm.a, vm.r)
 		case "apply": // (apply)
 			// accumulator is closure or primitive
-			body := vm.a.Body()
-			e := vm.a.Env()
-			vars := vm.a.Vars()
-			vm.x = body
-			vm.e = e.Extend(&vars, &vm.r)
-			vm.r = LispNull
+			if vm.a.IsClosure() {
+				body := vm.a.Body()
+				e := vm.a.Env()
+				vars := vm.a.Vars()
+				// next inst is body
+				vm.x = body // body's cont is (return)
+				// extend env with arguments
+				vm.e = e.Extend(vars, vm.r)
+				vm.r = LispNull
+			} else if vm.a.IsPrimitive() {
+				vm.a = vm.a.PrimitiveApply(vm.r)
+				vm.r = LispNull
+				vm.x = NewList(*NewSymbol("return"))
+			}
+
 		case "return":
+			// resets from stack
 			vm.x, _ = vm.s.ListRef(0)
 			vm.e, _ = vm.s.ListRef(1)
 			vm.r, _ = vm.s.ListRef(2)
@@ -142,8 +194,8 @@ func (env *LObj) LookUp(sym *LObj) (*LObj, error) {
 	}
 }
 
-func (env *LObj) Extend(vars, vals *LObj) LObj {
-	return Cons(Cons(*vars, *vals), *env)
+func (env *LObj) Extend(vars, vals LObj) LObj {
+	return Cons(Cons(vars, vals), *env)
 }
 
 func (pair *LObj) Var() *LObj {
@@ -185,4 +237,17 @@ func NewContinuation(s LObj) LObj {
 // call frame
 func NewCallFrame(x, e, r, s LObj) LObj {
 	return NewList(x, e, r, s)
+}
+
+func (obj *LObj) PrimitiveApply(arglist LObj) LObj {
+	args := make([]LObj, 0)
+	for {
+		if arglist.IsNull() {
+			break
+		}
+		elem, _ := arglist.Pop()
+		args = append(args, elem)
+	}
+	f := obj.Value.(func(...LObj) LObj)
+	return f(args...)
 }

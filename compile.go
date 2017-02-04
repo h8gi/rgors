@@ -9,7 +9,7 @@ func (next *LObj) isTail() bool {
 	return next.Car.Eq(NewSymbol("return"))
 }
 
-func (e *LObj) CompileExtend(r LObj) LObj {
+func (e *LObj) Extend(r LObj) LObj {
 	return Cons(r, *e)
 }
 
@@ -20,6 +20,9 @@ func (env *LObj) CompileLookUp(varsym *LObj) (pair LObj, err error) {
 			return LispFalse, fmt.Errorf("unbound variable: %v", varsym)
 		}
 		vars := env.Car
+		if !vars.IsPair() {
+			return *vars, fmt.Errorf("lambda vars not pair: %v", vars)
+		}
 		for {
 			// goto next rib
 			if vars.IsNull() {
@@ -67,7 +70,7 @@ func (x *LObj) comp(next, env LObj) (LObj, error) {
 			if err != nil {
 				return body, err
 			}
-			body, err = body.comp(NewList(*NewSymbol("return")), env.CompileExtend(vars))
+			body, err = body.comp(NewList(*NewSymbol("return")), env.Extend(vars))
 			if err != nil {
 				return body, err
 			}

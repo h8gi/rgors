@@ -63,7 +63,7 @@ func Repl() {
 			}
 		}
 		// eval???
-		// vm := NewVM()
+		vm := NewVM()
 		for _, expr := range program {
 			comp, err := expr.Compile()
 			if err != nil {
@@ -73,13 +73,13 @@ func Repl() {
 			fmt.Println(comp)
 
 			// eval!!
-			// vm.Load(comp)
-			// ans, err := vm.Run()
-			// if err != nil {
-			// 	fmt.Println("vm error:", err.Error())
-			// 	continue
-			// }
-			// fmt.Println("=>", comp, "\n=>", ans)
+			vm.Load(comp)
+			ans, err := vm.Run()
+			if err != nil {
+				fmt.Println("vm error:", err.Error())
+				continue
+			}
+			fmt.Println("=>", comp, "\n=>", ans)
 		}
 	}
 }
